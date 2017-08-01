@@ -38,6 +38,7 @@ parser.add_argument('--no_gpu', action='store_true', default=False,
 
 CHECKPOINTS = {
     'inceptionv3': 'inception_v3_google-1a9a5a14.pth',
+    'densenet121': 'densenet121-fixed.pth',
     'densenet169': 'densenet169-6f0f7f60.pth',
     'fbresnet200': 'fbresnet_200-37304a01b.pth',
     'inception_resnet_v2': 'inceptionresnetv2-d579a627.pth'
@@ -69,15 +70,16 @@ def main():
         shuffle=False)
 
     model_args = {}
-    model_args['inception_resnet_v2'] = {'img_size': 299, 'num_classes': 1001}
-    model_args['densenet169'] = {'img_size': 224, 'num_classes': 1000}
+    model_args['inception_resnet_v2'] = {'img_size': 299, 'iscale': 0.875, 'num_classes': 1001}
+    model_args['densenet121'] = {'img_size': 224, 'iscale': 0.9,  'num_classes': 1000}
+    model_args['densenet169'] = {'img_size': 224, 'iscale': 0.9125, 'num_classes': 1000}
     #model_args['fbresnet200'] = {'img_size': 224, 'num_classes': 1000}
     outputs = []
 
     for arch, margs in model_args.items():
         num_classes = margs['num_classes']
         tf = transforms.Compose([
-            transforms.Scale(round(margs['img_size']/0.875)),
+            transforms.Scale(round(margs['img_size']/margs['iscale'])),
             transforms.CenterCrop(margs['img_size']),
             transforms.ToTensor(),
             LeNormalize() if 'inception' in arch else transforms.Normalize(
