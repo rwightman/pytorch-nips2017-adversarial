@@ -8,17 +8,6 @@ import torch
 IMG_EXTENSIONS = ['.png', '.jpg']
 
 
-def is_image_file(filename):
-    return any(filename.tolower().endswith(extension) for extension in IMG_EXTENSIONS)
-
-
-def find_classes(dir):
-    classes = [d for d in os.listdir(dir) if os.path.isdir(os.path.join(dir, d))]
-    classes.sort()
-    class_to_idx = {classes[i]: i for i in range(len(classes))}
-    return classes, class_to_idx
-
-
 def find_inputs(folder, types=IMG_EXTENSIONS):
     inputs = []
     for root, _, files in os.walk(folder, topdown=False):
@@ -39,10 +28,8 @@ class Dataset(data.Dataset):
     def __init__(
             self,
             root,
-            img_size=299,
             transform=None):
 
-        classes, class_to_idx = find_classes(root)
         imgs = find_inputs(root)
         if len(imgs) == 0:
             raise(RuntimeError("Found 0 images in subfolders of: " + root + "\n"
@@ -50,8 +37,6 @@ class Dataset(data.Dataset):
 
         self.root = root
         self.imgs = imgs
-        self.classes = classes
-        self.class_to_idx = class_to_idx
         self.transform = transform
 
     def __getitem__(self, index):
@@ -61,12 +46,22 @@ class Dataset(data.Dataset):
             img = self.transform(img)
         if target is None:
             target = torch.zeros(1).long()
-        else:
-            target = torch.from_numpy(target).long()
-        return img, target, path.encode()
+        return img, target
 
     def __len__(self):
         return len(self.imgs)
 
     def set_transform(self, transform):
         self.transform = transform
+
+    def filenames(self, indices=[], basename=False):
+        if indices:
+            if basename:
+                return [os.path.basename(self.imgs[i][0]) for i in indices]
+            else:
+                return [self.imgs[i][0] for i in indices]
+        else:
+            if basename:
+                return [os.path.basename(x[0]) for x in self.imgs]
+            else:
+                return [x[0] for x in self.imgs]
