@@ -1,7 +1,6 @@
-"""Sample Pytorch defense.
+"""Baseline PyTorch multi-model defense.
 
-This defense loads inception v3 checkpoint and classifies all images
-using loaded checkpoint.
+A baseline defense using an ensemble of pretrained models as a starting point.
 """
 
 from __future__ import absolute_import
@@ -19,7 +18,7 @@ import torch.utils.data as data
 import torchvision.transforms as transforms
 import torch.nn.functional as F
 
-from models import create_model, dense_sparse_dense
+from models import create_model
 from dataset import Dataset
 
 parser = argparse.ArgumentParser(description='Defence')
@@ -102,6 +101,7 @@ def main():
                 model.load_state_dict(checkpoint)
         else:
             print("Error: No checkpoint found for %s at %s." % (arch, checkpoint_path))
+            continue
         sys.stdout.flush()
 
         outputs_logit = []
