@@ -7,19 +7,19 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import os
 import argparse
-import numpy as np
+import os
 import sys
 
+import numpy as np
 import torch
 import torch.autograd as autograd
+import torch.nn.functional as F
 import torch.utils.data as data
 import torchvision.transforms as transforms
-import torch.nn.functional as F
-
-from models import create_model
 from dataset import Dataset
+
+from python.models import create_model
 
 parser = argparse.ArgumentParser(description='Defence')
 parser.add_argument('--input_dir', metavar='DIR',

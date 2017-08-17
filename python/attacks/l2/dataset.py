@@ -16,7 +16,7 @@ def find_inputs(folder, filename_to_target=None, types=IMG_EXTENSIONS):
             base, ext = os.path.splitext(rel_filename)
             if ext.lower() in types:
                 abs_filename = os.path.join(root, rel_filename)
-                target = filename_to_target[rel_filename] if filename_to_target else 0
+                target = filename_to_target[rel_filename] if filename_to_target else None
                 inputs.append((abs_filename, target))
     return inputs
 
@@ -33,8 +33,11 @@ class Dataset(data.Dataset):
             target_file='target_class.csv',
             transform=None):
 
-        target_df = pd.read_csv(os.path.join(root, target_file), header=None)
-        f_to_t = dict(zip(target_df[0], target_df[1] - 1))
+        if target_file:
+            target_df = pd.read_csv(os.path.join(root, target_file), header=None)
+            f_to_t = dict(zip(target_df[0], target_df[1] - 1))
+        else:
+            f_to_t = None
         imgs = find_inputs(root, filename_to_target=f_to_t)
         if len(imgs) == 0:
             raise(RuntimeError("Found 0 images in subfolders of: " + root + "\n"

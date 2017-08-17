@@ -1,19 +1,19 @@
 import argparse
+import math
 import os
 import shutil
 import time
-import math
 
 import torch
+import torch.backends.cudnn as cudnn
 import torch.nn as nn
 import torch.nn.parallel
-import torch.backends.cudnn as cudnn
 import torch.optim
 import torch.utils.data
-import torchvision.transforms as transforms
 import torchvision.datasets as datasets
+import torchvision.transforms as transforms
 
-from models import create_model, dense_sparse_dense
+from python.models import create_model, dense_sparse_dense
 
 parser = argparse.ArgumentParser(description='PyTorch ImageNet Training')
 parser.add_argument('data', metavar='DIR',
