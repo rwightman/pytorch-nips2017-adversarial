@@ -19,7 +19,7 @@ import torch.utils.data as data
 import torchvision.transforms as transforms
 from dataset import Dataset
 
-from python.models import create_model
+from models import create_model
 
 parser = argparse.ArgumentParser(description='Defence')
 parser.add_argument('--input_dir', metavar='DIR',
@@ -70,8 +70,8 @@ def main():
 
     model_args = {}
     model_args['inception_resnet_v2'] = {'img_size': 299, 'iscale': 0.875, 'num_classes': 1001}
-    model_args['densenet121'] = {'img_size': 224, 'iscale': 0.9,  'num_classes': 1000}
-    model_args['densenet169'] = {'img_size': 224, 'iscale': 0.9125, 'num_classes': 1000}
+    #model_args['densenet121'] = {'img_size': 224, 'iscale': 0.9,  'num_classes': 1000}
+    #model_args['densenet169'] = {'img_size': 224, 'iscale': 0.9125, 'num_classes': 1000}
     #model_args['fbresnet200'] = {'img_size': 224, 'num_classes': 1000}
     outputs = []
 
@@ -104,24 +104,27 @@ def main():
             continue
         sys.stdout.flush()
 
-        outputs_logit = []
+        outputs_batch = []
         for batch_idx, (input, _) in enumerate(loader):
             if not args.no_gpu:
                 input = input.cuda()
             input_var = autograd.Variable(input, volatile=True)
-            labels = model(input_var)
+            logits = model(input_var)
             if num_classes > 1000:
-                labels = labels[:, 1:]
-            logits = F.softmax(labels)
-            outputs_logit.append(logits.data.cpu().numpy())
-        outputs.append(np.concatenate(outputs_logit, axis=0))
+                logits = logits[:, 1:]
+            label = F.softmax(logits)
+            outputs_batch.append(label.data.cpu().numpy())
+        outputs.append(np.concatenate(outputs_batch, axis=0))
 
     assert outputs
-    num_comb = float(len(outputs))
-    o = outputs[0]
-    for x in outputs[1:]:
-        np.multiply(o, x, o)
-    np.power(o, 1/num_comb, o)
+    if len(outputs) > 1:
+        num_comb = float(len(outputs))
+        o = outputs[0]
+        for x in outputs[1:]:
+            np.multiply(o, x, o)
+        np.power(o, 1/num_comb, o)
+    else:
+        o = outputs[0]
     o = np.argmax(o, axis=1) + 1
 
     with open(args.output_file, 'w') as out_file:
