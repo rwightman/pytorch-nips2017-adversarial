@@ -19,7 +19,7 @@ class BasicConv2d(nn.Module):
         super(BasicConv2d, self).__init__()
         self.conv = nn.Conv2d(
             in_planes, out_planes, kernel_size=kernel_size, stride=stride, padding=padding, bias=False)
-        self.bn = nn.BatchNorm2d(out_planes)
+        self.bn = nn.BatchNorm2d(out_planes, eps=.001)
         self.relu = nn.ReLU(inplace=False)
 
     def forward(self, x):
@@ -291,7 +291,6 @@ class InceptionResnetV2(nn.Module):
         x = self.repeat_2(x)
         x = self.block8(x)
         x = self.conv2d_7b(x)
-        #x = F.avg_pool2d(x, 8, count_include_pad=False)]
         x = adaptive_avgmax_pool2d(x, self.global_pool, count_include_pad=False)
         x = x.view(x.size(0), -1)
         if self.drop_rate > 0:
