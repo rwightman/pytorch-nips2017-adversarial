@@ -13,7 +13,7 @@ import torch.utils.data
 import torchvision.datasets as datasets
 import torchvision.transforms as transforms
 
-from python.models import create_model, dense_sparse_dense
+from models import create_model, dense_sparse_dense
 
 parser = argparse.ArgumentParser(description='PyTorch ImageNet Training')
 parser.add_argument('data', metavar='DIR',
@@ -68,12 +68,10 @@ def main():
     args = parser.parse_args()
 
     # create model
-    model = create_model(args.model, pretrained=args.pretrained)
-
-    model = torch.nn.DataParallel(model).cuda()
-
-    # define loss function (criterion) and optimizer
-    criterion = nn.CrossEntropyLoss().cuda()
+    num_classes = 1000
+    if args.model == 'inception_resnet_v2' or args.model == 'inception_v4':
+        num_classes = 1001
+    model = create_model(args.model, num_classes=num_classes, pretrained=args.pretrained)
 
     optimizer = torch.optim.SGD(
         model.parameters(), args.lr,
@@ -85,30 +83,39 @@ def main():
         if os.path.isfile(args.resume):
             print("=> loading checkpoint '{}'".format(args.resume))
             checkpoint = torch.load(args.resume)
-            args.start_epoch = checkpoint['epoch']
-            sparse_checkpoint = False
-            if 'sparse' in checkpoint and checkpoint['sparse']:
-                sparse_checkpoint = True
-            if sparse_checkpoint:
-                print("Loading sparse model")
-                dense_sparse_dense.sparsify(model, sparsity=0.)  # ensure sparsity_masks exist in model definition
-            best_prec1 = checkpoint['best_prec1']
-            model.load_state_dict(checkpoint['state_dict'])
-            optimizer.load_state_dict(checkpoint['optimizer'])
-            if args.sparse and not sparse_checkpoint:
-                print("Sparsifying loaded model")
-                dense_sparse_dense.sparsify(model, sparsity=0.5)
-            elif sparse_checkpoint and not args.sparse:
-                print("Densifying loaded model")
-                dense_sparse_dense.densify(model)
-            print("=> loaded checkpoint '{}' (epoch {})"
-                  .format(args.resume, checkpoint['epoch']))
+            if isinstance(checkpoint, dict) and 'state_dict' in checkpoint:
+                args.start_epoch = checkpoint['epoch']
+                sparse_checkpoint = False
+                if 'sparse' in checkpoint and checkpoint['sparse']:
+                    print("Loading sparse model")
+                    sparse_checkpoint = True
+                    dense_sparse_dense.sparsify(model, sparsity=0.)
+                best_prec1 = checkpoint['best_prec1']
+                model.load_state_dict(checkpoint['state_dict'])
+                optimizer.load_state_dict(checkpoint['optimizer'])
+                if args.sparse and not sparse_checkpoint:
+                    print("Sparsifying loaded model")
+                    dense_sparse_dense.sparsify(model, sparsity=0.5)
+                elif sparse_checkpoint and not args.sparse:
+                    print("Densifying loaded model")
+                    dense_sparse_dense.densify(model)
+                print("=> loaded checkpoint '{}' (epoch {})".format(
+                    args.resume, checkpoint['epoch']))
+            else:
+                # load from a non-training state dict only checkpoint
+                model.load_state_dict(checkpoint)
+                print("=> loaded checkpoint '{}'".format(args.resume))
         else:
             print("=> no checkpoint found at '{}'".format(args.resume))
+            exit(-1)
     else:
         if args.sparse:
             print("Sparsifying model")
             dense_sparse_dense.sparsify(model, sparsity=0.5)
+
+    model = torch.nn.DataParallel(model).cuda()
+
+    criterion = nn.CrossEntropyLoss().cuda()
 
     cudnn.benchmark = True
 
@@ -183,6 +190,7 @@ def train(train_loader, model, criterion, optimizer, epoch):
         # measure data loading time
         data_time.update(time.time() - end)
 
+        #FIXME handle 1001 class models
         target = target.cuda(async=True)
         input_var = torch.autograd.Variable(input)
         target_var = torch.autograd.Variable(target)
@@ -231,6 +239,7 @@ def validate(val_loader, model, criterion):
 
     end = time.time()
     for i, (input, target) in enumerate(val_loader):
+        # FIXME handle 1001 class models
         target = target.cuda(async=True)
         input_var = torch.autograd.Variable(input, volatile=True)
         target_var = torch.autograd.Variable(target, volatile=True)
