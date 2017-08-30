@@ -1,9 +1,8 @@
 import argparse
 import math
 import os
-import shutil
 import time
-
+import numpy as np
 import torch
 import torch.backends.cudnn as cudnn
 import torch.nn as nn
@@ -12,6 +11,7 @@ import torch.optim
 import torch.utils.data
 import torchvision.datasets as datasets
 import torchvision.transforms as transforms
+from PIL import Image
 
 from models import create_model, dense_sparse_dense
 
@@ -52,7 +52,11 @@ def main():
     num_classes = 1000
     if args.model == 'inception_resnet_v2' or args.model == 'inception_v4':
         num_classes = 1001
-    model = create_model(args.model, num_classes=num_classes, pretrained=args.pretrained)
+    model = create_model(
+        args.model, num_classes=num_classes, pretrained=args.pretrained)
+
+    print('Model %s created, param count: %d' %
+          (args.model, sum([m.numel() for m in model.parameters()])))
 
     # optionally resume from a checkpoint
     if args.restore_checkpoint and os.path.isfile(args.restore_checkpoint):
@@ -66,7 +70,7 @@ def main():
         else:
             model.load_state_dict(checkpoint)
         print("=> loaded checkpoint '{}'".format(args.restore_checkpoint))
-    else:
+    elif not args.pretrained:
         print("=> no checkpoint found at '{}'".format(args.restore_checkpoint))
         exit(-1)
 
@@ -78,15 +82,21 @@ def main():
     cudnn.benchmark = True
 
     # Data loading code
+    scale_size = int(math.floor(args.img_size / 0.875))
     if 'inception' in args.model:
         normalize = LeNormalize()
+        scale_size = args.img_size
+    elif 'dpn' in args.model:
+        if args.img_size != 224:
+            scale_size = args.img_size
+        normalize = transforms.Normalize(mean=[124/255, 117/255, 104/255], std=[1/(.0167*255)]*3)
     else:
         normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
 
     dataset = datasets.ImageFolder(
         args.data,
         transforms.Compose([
-            transforms.Scale(int(math.floor(args.img_size / 0.9))),
+            transforms.Scale(scale_size, Image.BICUBIC),
             transforms.CenterCrop(args.img_size),
             transforms.ToTensor(),
             normalize,
@@ -108,8 +118,8 @@ def main():
     end = time.time()
     for i, (input, target) in enumerate(loader):
         target = target.cuda(async=True)
-        input_var = torch.autograd.Variable(input, volatile=True)
-        target_var = torch.autograd.Variable(target, volatile=True)
+        input_var = torch.autograd.Variable(input, volatile=True).cuda()
+        target_var = torch.autograd.Variable(target, volatile=True).cuda()
 
         # compute output
         output = model(input_var)
