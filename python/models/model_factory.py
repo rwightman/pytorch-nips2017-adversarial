@@ -1,4 +1,5 @@
 from torchvision.models import *
+import torchvision.models
 from .resnext101_32x4d import resnext101_32x4d
 from .inception_v4 import inception_v4
 from .inception_resnet_v2 import inception_resnet_v2
@@ -7,13 +8,76 @@ from .my_densenet import densenet161, densenet121, densenet169, densenet201
 from .my_resnet import resnet18, resnet34, resnet50, resnet101, resnet152
 from .fbresnet200 import fbresnet200
 from .dpn import dpn68, dpn92, dpn98, dpn131, dpn107
+from .normalized_model import NormalizedModel
+from .self_resizing_model import SelfResizingModel
+from .standardized_output_model import StandardizedOutputModel
+from normalizations.normalizer_factory import get_normalizer
+
+# Just for reference at this point
+available_models = [
+    'dpn68',
+    'dpn98',
+    'dpn131',
+    'dnp107',
+    'resnet18',
+    'resnet34',
+    'resnet50',
+    'resnet101',
+    'resnet152',
+    'densenet121',
+    'densenet161',
+    'densenet169',
+    'densenet201',
+    'inception_v3',
+    'inception_resnet_v2',
+    'inception_v4',
+    'resnext101_32x4d',
+    'wrn50',
+    'fbresnet200'
+]
+
+model_name_normalizer_name_mapping = {
+    'dpn68' : 'dualpathnet',
+    'dpn98' : 'dualpathnet',
+    'dpn131' : 'dualpathnet',
+    'dnp107' : 'dualpathnet',
+    'resnet18' : 'torchvision',
+    'resnet34' : 'torchvision',
+    'resnet50' : 'torchvision',
+    'resnet101' : 'torchvision',
+    'resnet152' : 'torchvision',
+    'densenet121' : 'torchvision',
+    'densenet161' : 'torchvision',
+    'densenet169' : 'torchvision',
+    'densenet201' : 'torchvision',
+    'inception_v3' : 'le',
+    'inception_resnet_v2' : 'le',
+    'inception_v4' : 'le',
+    'resnext101_32x4d' : None,
+    'wrn50' : None,
+    'fbresnet200' : None
+}
 
 
-def create_model(model_name='resnet50', pretrained=True, num_classes=1000, **kwargs):
+def create_model(
+        model_name='resnet50',
+        pretrained=True,
+        num_classes=1000,
+        normalize_inputs=False,
+        resize_inputs=False,
+        standardize_outputs=False,
+        **kwargs):
+
     if 'test_time_pool' in kwargs:
         test_time_pool = kwargs.pop('test_time_pool')
     else:
         test_time_pool = True
+
+    if 'drop_first_class' in kwargs:
+        drop_first_class = kwargs.pop('drop_first_class')
+    if 'input_size' in kwargs:
+        input_size = kwargs.pop('input_size')
+
 
     if model_name == 'dpn68':
         model = dpn68(
@@ -63,6 +127,16 @@ def create_model(model_name='resnet50', pretrained=True, num_classes=1000, **kwa
         model = fbresnet200(num_classes=num_classes, pretrained=pretrained,  **kwargs)
     else:
         assert False and "Invalid model"
+
+    if resize_inputs:
+        model = SelfResizingModel(model=model, input_size=input_size)
+
+    if normalize_inputs:
+        normalizer = get_normalizer(model_name_normalizer_name_mapping[model_name])
+        model = NormalizedModel(model=model, normalizer=normalizer)
+
+    if standardize_outputs:
+        model = StandardizedOutputModel(model, drop_first_class=drop_first_class)
 
     return model
 
