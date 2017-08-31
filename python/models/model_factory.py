@@ -1,4 +1,3 @@
-from torchvision.models import *
 import torchvision.models
 from .resnext101_32x4d import resnext101_32x4d
 from .inception_v4 import inception_v4
@@ -13,32 +12,9 @@ from .self_resizing_model import SelfResizingModel
 from .standardized_output_model import StandardizedOutputModel
 from normalizations.normalizer_factory import get_normalizer
 
-# Just for reference at this point
-available_models = [
-    'dpn68',
-    'dpn98',
-    'dpn131',
-    'dnp107',
-    'resnet18',
-    'resnet34',
-    'resnet50',
-    'resnet101',
-    'resnet152',
-    'densenet121',
-    'densenet161',
-    'densenet169',
-    'densenet201',
-    'inception_v3',
-    'inception_resnet_v2',
-    'inception_v4',
-    'resnext101_32x4d',
-    'wrn50',
-    'fbresnet200'
-]
-
 model_name_normalizer_name_mapping = {
     'dpn68' : 'dualpathnet',
-    'dpn98' : 'dualpathnet',
+    'dpn92' : 'dualpathnet',
     'dpn131' : 'dualpathnet',
     'dnp107' : 'dualpathnet',
     'resnet18' : 'torchvision',
@@ -46,10 +22,22 @@ model_name_normalizer_name_mapping = {
     'resnet50' : 'torchvision',
     'resnet101' : 'torchvision',
     'resnet152' : 'torchvision',
+    'resnet18-torchvision': 'torchvision',
+    'resnet34-torchvision': 'torchvision',
+    'resnet50-torchvision': 'torchvision',
+    'resnet101-torchvision': 'torchvision',
+    'resnet152-torchvision': 'torchvision',
     'densenet121' : 'torchvision',
     'densenet161' : 'torchvision',
     'densenet169' : 'torchvision',
     'densenet201' : 'torchvision',
+    'densenet121-torchvision': 'torchvision',
+    'densenet161-torchvision': 'torchvision',
+    'densenet169-torchvision': 'torchvision',
+    'densenet201-torchvision': 'torchvision',
+    'squeezenet1_0': 'torchvision',
+    'squeezenet1_1': 'torchvision',
+    'alexnet' : 'torchvision',
     'inception_v3' : 'le',
     'inception_resnet_v2' : 'le',
     'inception_v4' : 'le',
@@ -78,7 +66,6 @@ def create_model(
     if 'input_size' in kwargs:
         input_size = kwargs.pop('input_size')
 
-
     if model_name == 'dpn68':
         model = dpn68(
             num_classes=num_classes, pretrained=pretrained, test_time_pool=test_time_pool, **kwargs)
@@ -96,24 +83,42 @@ def create_model(
             num_classes=num_classes, pretrained=pretrained, test_time_pool=test_time_pool, **kwargs)
     elif model_name == 'resnet18':
         model = resnet18(num_classes=num_classes, pretrained=pretrained, **kwargs)
+    elif model_name == 'resnet18-torchvision':
+        model = torchvision.models.resnet18(num_classes=num_classes, pretrained=pretrained, **kwargs)
     elif model_name == 'resnet34':
         model = resnet34(num_classes=num_classes, pretrained=pretrained, **kwargs)
+    elif model_name == 'resnet34-torchvision':
+        model = torchvision.models.resnet34(num_classes=num_classes, pretrained=pretrained, **kwargs)
     elif model_name == 'resnet50':
         model = resnet50(num_classes=num_classes, pretrained=pretrained, **kwargs)
+    elif model_name == 'resnet50-torchvision':
+        model = torchvision.models.resnet50(num_classes=num_classes, pretrained=pretrained, **kwargs)
     elif model_name == 'resnet101':
         model = resnet101(num_classes=num_classes, pretrained=pretrained, **kwargs)
+    elif model_name == 'resnet101-torchvision':
+        model = torchvision.models.resnet101(num_classes=num_classes, pretrained=pretrained, **kwargs)
     elif model_name == 'resnet152':
         model = resnet152(num_classes=num_classes, pretrained=pretrained, **kwargs)
+    elif model_name == 'resnet152-torchvision':
+        model = torchvision.models.resnet152(num_classes=num_classes, pretrained=pretrained, **kwargs)
     elif model_name == 'densenet121':
         model = densenet121(num_classes=num_classes, pretrained=pretrained, **kwargs)
+    elif model_name == 'densenet121-torchvision':
+        model = torchvision.models.densenet121(num_classes=num_classes, pretrained=pretrained, **kwargs)
     elif model_name == 'densenet161':
         model = densenet161(num_classes=num_classes, pretrained=pretrained, **kwargs)
+    elif model_name == 'densenet161-torchvision':
+        model = torchvision.models.densenet161(num_classes=num_classes, pretrained=pretrained, **kwargs)
     elif model_name == 'densenet169':
         model = densenet169(num_classes=num_classes, pretrained=pretrained, **kwargs)
+    elif model_name == 'densenet169-torchvision':
+        model = torchvision.models.densenet169(num_classes=num_classes, pretrained=pretrained, **kwargs)
     elif model_name == 'densenet201':
         model = densenet201(num_classes=num_classes, pretrained=pretrained, **kwargs)
+    elif model_name == 'densenet201-torchvision':
+        model = torchvision.models.densenet201(num_classes=num_classes, pretrained=pretrained, **kwargs)
     elif model_name == 'inception_v3':
-        model = inception_v3(
+        model = torchvision.models.inception_v3(
             num_classes=num_classes, pretrained=pretrained, transform_input=False, **kwargs)
     elif model_name == 'inception_resnet_v2':
         model = inception_resnet_v2(num_classes=num_classes, pretrained=pretrained, **kwargs)
@@ -125,6 +130,12 @@ def create_model(
         model = wrn50_2(num_classes=num_classes, pretrained=pretrained,  **kwargs)
     elif model_name == 'fbresnet200':
         model = fbresnet200(num_classes=num_classes, pretrained=pretrained,  **kwargs)
+    elif model_name == 'squeezenet1_0':
+        model = torchvision.models.squeezenet1_0(pretrained=pretrained)
+    elif model_name == 'squeezenet1_1':
+        model = torchvision.models.squeezenet1_1(pretrained=pretrained)
+    elif model_name == 'alexnet':
+        model = torchvision.models.alexnet(pretrained=pretrained)
     else:
         assert False and "Invalid model"
 

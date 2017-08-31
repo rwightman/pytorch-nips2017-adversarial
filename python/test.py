@@ -2,6 +2,7 @@ import argparse
 import os
 import torch
 from models import create_ensemble
+from experiments.model_configs import config_from_string
 import augmentations
 
 import os
@@ -34,19 +35,10 @@ def main():
     dataset = Dataset(args.input_dir, transform=tf)
     loader = data.DataLoader(dataset, batch_size=8, shuffle=False)
 
-    cfgs = [{
-        'model_name' : 'resnet18',
-        'pretrained' : False,
-        'num_classes' : 1000,
-        'normalize_inputs' : True,
-        'resize_inputs' :  True,
-        'input_size' : 224,
-        'standardize_outputs' : True,
-        'drop_first_class' : False,
-        'checkpoint_file' : 'resnet18-5c106cde.pth'
-    }]
+    model_config_srings = ['Resnet18', 'InceptionResnetV2']
+    cfgs = [config_from_string(s) for s in model_config_srings]
 
-    ensemble = create_ensemble(cfgs, [1.0])
+    ensemble = create_ensemble(cfgs, [1.0 for _ in cfgs])
     augment = augmentations.AugmentationComposer([
         augmentations.RandomCrop(269),
         augmentations.Mirror(0.5),
