@@ -9,7 +9,7 @@ def config_from_string(string):
         'Resnet50': {'model_name': 'resnet50-torchvision', 'num_classes': 1000, 'input_size': 224,
                      'checkpoint_file': 'resnet50-19c8e357.pth', 'drop_first_class': False},
         'Resnet101': {'model_name': 'resnet101-torchvision', 'num_classes': 1000, 'input_size': 224,
-                      'checkpoint_file': 'densenet121-241335ed.pth', 'drop_first_class': False},
+                      'checkpoint_file': 'resnet101-5d3b4d8f.pth', 'drop_first_class': False},
         'Resnet152': {'model_name': 'resnet152-torchvision', 'num_classes': 1000, 'input_size': 224,
                       'checkpoint_file': 'resnet152-b121ed2d.pth', 'drop_first_class': False},
         'DenseNet121': {'model_name': 'densenet121-torchvision', 'num_classes': 1000, 'input_size': 224,
