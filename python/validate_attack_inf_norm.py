@@ -4,8 +4,11 @@ import argparse
 import os
 import numpy as np
 from PIL import Image
+import yaml
 
-main_dir = '/tmp/nips/'
+with open('local_config.yaml', 'r') as f:
+    local_config = yaml.load(f)
+main_dir = local_config['results_dir']
 
 def parse_args():
     """Parses command line arguments."""
@@ -21,10 +24,10 @@ def main():
 
     print('Validating images for {}attack {}...'.format('targeted ' if args.targeted else '',args.attack_name))
 
-    all_images = os.listdir('../dataset/images')
+    all_images = os.listdir(local_config['images_dir'])
     for im in all_images:
         if im.endswith('.png'):
-            with open(os.path.join('../dataset/images/',im), 'rb') as f:
+            with open(os.path.join(local_config['images_dir'],im), 'rb') as f:
                 original_image = Image.open(f).convert('RGB')
                 original_image = np.array(original_image).astype(np.float)
             with open(os.path.join(main_dir,

@@ -40,7 +40,7 @@ def config_from_string(string):
                               'checkpoint_file': 'inceptionresnetv2-d579a627.pth', 'drop_first_class': True},
     }
 
-    for string, config_dict in string_to_config_dict.items():
+    for _, config_dict in string_to_config_dict.items():
         config_dict['pretrained'] = False
         config_dict['normalize_inputs'] = True
         config_dict['resize_inputs'] = True

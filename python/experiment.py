@@ -1,8 +1,10 @@
 import subprocess
 import os
-
 import yaml
-local_config = yaml.load('local_config.yaml')
+from experiments.model_configs import config_from_string
+
+with open('local_config.yaml', 'r') as f:
+    local_config = yaml.load(f)
 main_dir = local_config['results_dir']
 if not os.path.exists(main_dir):
     os.makedirs(main_dir)
@@ -25,7 +27,8 @@ def run_cw_inspired_experiment(
         no_augmentation=False,
         no_augmentation_blurring=False,
         n_iter=100,
-        lr=0.02):
+        lr=0.02,
+        target_nth_highest=6):
     experiment_name = 'cw_inspired_{}'.format(''.join(sorted(ensemble)))
     if no_augmentation:
         experiment_name = '{}_noaug'.format(experiment_name)
@@ -35,6 +38,9 @@ def run_cw_inspired_experiment(
         experiment_name = '{}_{}iter'.format(experiment_name, n_iter)
     if lr != 0.02:
         experiment_name = '{}_lr{}'.format(experiment_name, lr)
+    if target_nth_highest != 6:
+        experiment_name = '{}_trg{}'.format(experiment_name, target_nth_highest)
+
     output_dir = os.path.join(main_dir, 'targeted_attacks' if targeted else 'attacks', experiment_name)
     if not os.path.exists(output_dir):
         print('Running experiment {}: {}attack {}.'.format(experiment_name, 'targeted ' if targeted else '', 'cw_inspired'))
@@ -47,6 +53,11 @@ def run_cw_inspired_experiment(
             '--input_dir=/input_images',
             '--output_dir=/output_images',
             '--max_epsilon={}'.format(max_epsilon) ]
+
+        checkpoint_paths = [config_from_string(m)['checkpoint_file'] for m in ensemble]
+        python_cmd.append('--checkpoint_paths')
+        python_cmd.extend([os.path.join('/checkpoints/',cp) for cp in checkpoint_paths]) # We're going to mount the checkpoint folder below
+
         if targeted:
             python_cmd.append('--targeted')
         if no_augmentation:
@@ -57,6 +68,8 @@ def run_cw_inspired_experiment(
             python_cmd.extend(['--n_iter',str(n_iter)])
         if lr != 0.02:
             python_cmd.extend(['--lr', str(lr)])
+        if target_nth_highest != 6:
+            python_cmd.extend(['--target_nth_highest', str(target_nth_highest)])
         python_cmd.append('--ensemble')
         python_cmd.extend(ensemble)
         python_cmd.append('--ensemble_weights')
@@ -67,7 +80,7 @@ def run_cw_inspired_experiment(
             '-v','{}:/input_images'.format(os.path.abspath(input_dir)),
             '-v','{}:/output_images'.format(os.path.abspath(output_dir)),
             '-v','{}:/code'.format(os.path.abspath(os.getcwd())),
-            '-v', '{}:/checkpoints'.format(os.path.abspath(CHECKPOINT_DIR)),
+            '-v', '{}:/checkpoints'.format(os.path.abspath(CHECKPOINT_DIR)), # Here is mounting that checkpoint folder
             '-w','/code',
             'rwightman/pytorch-extra'
         ]
@@ -97,6 +110,10 @@ def run_base_defense_experiment(ensemble, ensemble_weights, attack_name, targete
         python_cmd.append('--ensemble_weights')
         python_cmd.extend([str(e) for e in ensemble_weights])
 
+        checkpoint_paths = [config_from_string(m)['checkpoint_file'] for m in ensemble]
+        python_cmd.append('--checkpoint_paths')
+        python_cmd.extend([os.path.join('/checkpoints/',cp) for cp in checkpoint_paths]) # We're going to mount the checkpoint folder below
+
         cmd = [
             'nvidia-docker','run',
             '-v','{}:/input_images'.format(os.path.abspath(input_dir)),
@@ -111,7 +128,7 @@ def run_base_defense_experiment(ensemble, ensemble_weights, attack_name, targete
 
         subprocess.call(cmd)
 
-        subprocess.call(['python', '../evaluate_attacks_and_defenses.py'])
+        subprocess.call(['python', 'evaluate_attacks_and_defenses.py'])
 
 # Run all base defenses against existing attacks
 def complete_remaining():
@@ -149,8 +166,17 @@ all_models = [
 models_exclude_for_attack = ['DPN107Extra']
 all_models_for_attacks = [m for m in all_models if m not in models_exclude_for_attack]
 
+run_cw_inspired_experiment(['AdvInceptionResnetV2', 'Inceptionv3'],[1.0, 1.0],targeted=True,lr=0.02)
 complete_remaining()
-#run_cw_inspired_experiment(['Alexnet', 'SqueezeNet1_1'], [1.0, 1.0], targeted=True)
+run_cw_inspired_experiment(['AdvInceptionResnetV2', 'Inceptionv3'],[1.0, 1.0],targeted=True,lr=0.04)
+complete_remaining()
+run_cw_inspired_experiment(['AdvInceptionResnetV2', 'Inceptionv3'],[1.0, 1.0],targeted=True,lr=0.08)
+complete_remaining()
+run_cw_inspired_experiment(['AdvInceptionResnetV2', 'Inceptionv3'],[1.0, 1.0],targeted=True,lr=0.16)
+complete_remaining()
+run_cw_inspired_experiment(['AdvInceptionResnetV2', 'Inceptionv3'],[1.0, 1.0],targeted=True,lr=0.32)
+complete_remaining()
+
 
 # Cleanup!
 """
