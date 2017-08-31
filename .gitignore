@@ -1,0 +1,5 @@
+*.pyc
+*.csv
+__pycache__
+.idea
+local_config.yaml
