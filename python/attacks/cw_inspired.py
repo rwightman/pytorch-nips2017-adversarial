@@ -142,8 +142,6 @@ class CWInspired(object):
                                                  input_var,
                                                  autograd.Variable(torch.FloatTensor([eps]).cuda()))
             final_change = torch.clamp(final_change, -eps, eps)  # Hygiene, math should mean this is already true
-            assert torch.max(final_change).data.cpu().numpy() < eps
-            assert torch.min(final_change).data.cpu().numpy() > -eps
             final_image_tensor = input_var + final_change
             final_image_tensor = torch.clamp(final_image_tensor, 0.0,
                                              1.0)  # Hygiene, math should mean this is already true

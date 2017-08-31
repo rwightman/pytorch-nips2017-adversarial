@@ -40,15 +40,15 @@ def write_score_matrix(filename, scores, mask, row_names, column_names):
     result[0, 1:] = column_names
     np.savetxt(filename, result, fmt='%s', delimiter=',')
 
-attack_names = os.listdir(os.path.join(main_dir, 'attacks'))
+attack_names = sorted(os.listdir(os.path.join(main_dir, 'attacks')))
 attack_names_idx = {name: index for index, name in enumerate(attack_names)}
 n_attacks = len(attack_names)
-targeted_attack_names = os.listdir(os.path.join(main_dir, 'targeted_attacks'))
+targeted_attack_names = sorted(os.listdir(os.path.join(main_dir, 'targeted_attacks')))
 targeted_attack_names_idx = {name: index
                                for index, name
                                in enumerate(targeted_attack_names)}
 n_targeted_attacks = len(targeted_attack_names)
-defense_names = os.listdir(os.path.join(main_dir, 'defenses'))
+defense_names = sorted(os.listdir(os.path.join(main_dir, 'defenses')))
 defense_names_idx = {name: index for index, name in enumerate(defense_names)}
 n_defenses = len(defense_names)
 
