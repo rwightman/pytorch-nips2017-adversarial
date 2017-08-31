@@ -1,9 +1,9 @@
 import argparse
-
 from models import create_ensemble
 from experiments.model_configs import config_from_string
 from defenses.base import Base
 from dataset import Dataset
+import torch
 import torchvision.transforms as transforms
 
 parser = argparse.ArgumentParser(description='Defence')
@@ -14,6 +14,7 @@ parser.add_argument('--output_file', metavar='FILE', default='',
 parser.add_argument('--ensemble', nargs='+', help='Class names for the defensive ensemble.')
 parser.add_argument('--ensemble_weights', nargs='+', type=float,
                     help='Weights for weighted geometric mean of output probs')
+parser.add_argument('--checkpoint_paths', nargs='+', help='Paths to checkpoint files for each model.')
 parser.add_argument('--img-size', type=int, default=299, metavar='N',
                     help='Image patch size (default: 299)')
 parser.add_argument('--batch-size', type=int, default=32, metavar='N',
@@ -28,6 +29,15 @@ def main():
     cfgs = [config_from_string(s) for s in args.ensemble]
 
     ensemble = create_ensemble(cfgs, args.ensemble_weights)
+
+    for cfg, model, checkpoint_path in zip(cfgs, ensemble.models, args.checkpoint_paths):
+        checkpoint = torch.load(checkpoint_path)
+        if isinstance(checkpoint, dict) and 'state_dict' in checkpoint:
+            model.get_core_model().load_state_dict(checkpoint['state_dict'])
+        else:
+            model.get_core_model().load_state_dict(checkpoint)
+        model.get_core_model().cuda()
+        model.get_core_model().eval()
 
     tf = transforms.Compose([
         transforms.Scale(args.img_size),

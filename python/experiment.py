@@ -1,8 +1,10 @@
 import subprocess
 import os
-
 import yaml
-local_config = yaml.load('local_config.yaml')
+from experiments.model_configs import config_from_string
+
+with open('local_config.yaml', 'r') as f:
+    local_config = yaml.load(f)
 main_dir = local_config['results_dir']
 if not os.path.exists(main_dir):
     os.makedirs(main_dir)
@@ -47,6 +49,11 @@ def run_cw_inspired_experiment(
             '--input_dir=/input_images',
             '--output_dir=/output_images',
             '--max_epsilon={}'.format(max_epsilon) ]
+
+        checkpoint_paths = [config_from_string(m)['checkpoint_file'] for m in ensemble]
+        python_cmd.append('--checkpoint_paths')
+        python_cmd.extend([os.path.join('/checkpoints/',cp) for cp in checkpoint_paths]) # We're going to mount the checkpoint folder below
+
         if targeted:
             python_cmd.append('--targeted')
         if no_augmentation:
@@ -67,7 +74,7 @@ def run_cw_inspired_experiment(
             '-v','{}:/input_images'.format(os.path.abspath(input_dir)),
             '-v','{}:/output_images'.format(os.path.abspath(output_dir)),
             '-v','{}:/code'.format(os.path.abspath(os.getcwd())),
-            '-v', '{}:/checkpoints'.format(os.path.abspath(CHECKPOINT_DIR)),
+            '-v', '{}:/checkpoints'.format(os.path.abspath(CHECKPOINT_DIR)), # Here is mounting that checkpoint folder
             '-w','/code',
             'rwightman/pytorch-extra'
         ]
@@ -97,6 +104,10 @@ def run_base_defense_experiment(ensemble, ensemble_weights, attack_name, targete
         python_cmd.append('--ensemble_weights')
         python_cmd.extend([str(e) for e in ensemble_weights])
 
+        checkpoint_paths = [config_from_string(m)['checkpoint_file'] for m in ensemble]
+        python_cmd.append('--checkpoint_paths')
+        python_cmd.extend([os.path.join('/checkpoints/',cp) for cp in checkpoint_paths]) # We're going to mount the checkpoint folder below
+
         cmd = [
             'nvidia-docker','run',
             '-v','{}:/input_images'.format(os.path.abspath(input_dir)),
@@ -111,7 +122,7 @@ def run_base_defense_experiment(ensemble, ensemble_weights, attack_name, targete
 
         subprocess.call(cmd)
 
-        subprocess.call(['python', '../evaluate_attacks_and_defenses.py'])
+        subprocess.call(['python', 'evaluate_attacks_and_defenses.py'])
 
 # Run all base defenses against existing attacks
 def complete_remaining():
@@ -150,7 +161,8 @@ models_exclude_for_attack = ['DPN107Extra']
 all_models_for_attacks = [m for m in all_models if m not in models_exclude_for_attack]
 
 complete_remaining()
-#run_cw_inspired_experiment(['Alexnet', 'SqueezeNet1_1'], [1.0, 1.0], targeted=True)
+run_base_defense_experiment(['Resnet18','Resnet34'],[1.0,1.0],'cw_inspired_Resnet18',targeted=True)
+#run_cw_inspired_experiment(['Resnet18'], [1.0], targeted=True, no_augmentation=True)
 
 # Cleanup!
 """

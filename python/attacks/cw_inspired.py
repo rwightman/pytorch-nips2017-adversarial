@@ -151,39 +151,3 @@ class CWInspired(object):
             for filename, o in zip(self.dataset.filenames(indices, basename=True), final_image_tensor.cpu().data.numpy()):
                 output_file = os.path.join(self.output_dir, filename)
                 imsave(output_file, np.transpose(o, axes=(1, 2, 0)), format='png')
-
-"""
-from .models import defense_model
-from .attacks.cw_inspired import CWInspired
-from .dataset import Dataset
-
-def run(input_dir, output_dir, max_epsilon, targeted, ensemble, ensemble_weights, gpu):
-
-    ensemble_classes = [getattr(defense_model, class_name) for class_name in ensemble]
-
-    target_model = defense_model.DefenseEnsemble(
-        ensemble_classes,
-        ensemble_weights,
-        gpu=gpu
-    )
-
-    augmentation = defense_model.DefenseAugmentation(269)
-
-    if targeted:
-        dataset = Dataset(input_dir)
-    else:
-        dataset = Dataset(input_dir, target_file='')
-
-    attack = CWInspired(
-        input_dir,
-        output_dir,
-        max_epsilon,
-        target_model,
-        augmentation,
-        dataset,
-        targeted=targeted,
-        gpu=gpu
-    )
-
-    attack.run()
-"""

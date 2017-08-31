@@ -8,8 +8,21 @@ import os
 
 
 class Base(object):
-    def __init__(self, *args, **kwargs):
-        super(Base, self).__init__( *args, **kwargs)
+    def __init__(self, input_dir, output_file, ensemble, dataset, img_size=299, batch_size=8, gpu=True):
+        self.input_dir = input_dir
+        self.output_file = output_file
+        self.ensemble = ensemble
+        self.dataset = dataset
+        self.img_size = img_size
+        self.batch_size = batch_size
+        self.gpu = gpu
+
+    def write_output_file(self, outputs):
+        with open(self.output_file, 'w') as out_file:
+            filenames = self.dataset.filenames()
+            for filename, label in zip(filenames, outputs):
+                filename = os.path.basename(filename)
+                out_file.write('{0},{1}\n'.format(filename, (label + 1)))
 
     def run(self):
 
