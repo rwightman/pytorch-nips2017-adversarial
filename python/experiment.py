@@ -27,7 +27,8 @@ def run_cw_inspired_experiment(
         no_augmentation=False,
         no_augmentation_blurring=False,
         n_iter=100,
-        lr=0.02):
+        lr=0.02,
+        target_nth_highest=6):
     experiment_name = 'cw_inspired_{}'.format(''.join(sorted(ensemble)))
     if no_augmentation:
         experiment_name = '{}_noaug'.format(experiment_name)
@@ -37,6 +38,9 @@ def run_cw_inspired_experiment(
         experiment_name = '{}_{}iter'.format(experiment_name, n_iter)
     if lr != 0.02:
         experiment_name = '{}_lr{}'.format(experiment_name, lr)
+    if target_nth_highest != 6:
+        experiment_name = '{}_trg{}'.format(experiment_name, target_nth_highest)
+
     output_dir = os.path.join(main_dir, 'targeted_attacks' if targeted else 'attacks', experiment_name)
     if not os.path.exists(output_dir):
         print('Running experiment {}: {}attack {}.'.format(experiment_name, 'targeted ' if targeted else '', 'cw_inspired'))
@@ -64,6 +68,8 @@ def run_cw_inspired_experiment(
             python_cmd.extend(['--n_iter',str(n_iter)])
         if lr != 0.02:
             python_cmd.extend(['--lr', str(lr)])
+        if target_nth_highest != 6:
+            python_cmd.extend(['--target_nth_highest', str(target_nth_highest)])
         python_cmd.append('--ensemble')
         python_cmd.extend(ensemble)
         python_cmd.append('--ensemble_weights')
@@ -160,9 +166,17 @@ all_models = [
 models_exclude_for_attack = ['DPN107Extra']
 all_models_for_attacks = [m for m in all_models if m not in models_exclude_for_attack]
 
+run_cw_inspired_experiment(['AdvInceptionResnetV2', 'Inceptionv3'],[1.0, 1.0],targeted=True,lr=0.02)
 complete_remaining()
-run_base_defense_experiment(['Resnet18','Resnet34'],[1.0,1.0],'cw_inspired_Resnet18',targeted=True)
-#run_cw_inspired_experiment(['Resnet18'], [1.0], targeted=True, no_augmentation=True)
+run_cw_inspired_experiment(['AdvInceptionResnetV2', 'Inceptionv3'],[1.0, 1.0],targeted=True,lr=0.04)
+complete_remaining()
+run_cw_inspired_experiment(['AdvInceptionResnetV2', 'Inceptionv3'],[1.0, 1.0],targeted=True,lr=0.08)
+complete_remaining()
+run_cw_inspired_experiment(['AdvInceptionResnetV2', 'Inceptionv3'],[1.0, 1.0],targeted=True,lr=0.16)
+complete_remaining()
+run_cw_inspired_experiment(['AdvInceptionResnetV2', 'Inceptionv3'],[1.0, 1.0],targeted=True,lr=0.32)
+complete_remaining()
+
 
 # Cleanup!
 """

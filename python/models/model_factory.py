@@ -16,7 +16,7 @@ model_name_normalizer_name_mapping = {
     'dpn68' : 'dualpathnet',
     'dpn92' : 'dualpathnet',
     'dpn131' : 'dualpathnet',
-    'dnp107' : 'dualpathnet',
+    'dpn107' : 'dualpathnet',
     'resnet18' : 'torchvision',
     'resnet34' : 'torchvision',
     'resnet50' : 'torchvision',

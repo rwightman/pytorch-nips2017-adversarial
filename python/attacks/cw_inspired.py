@@ -16,11 +16,10 @@ class PerturbationNet(nn.Module):
         self.defense_ensemble = defense_ensemble
         self.defense_augmentation = defense_augmentation
         self.epsilon = autograd.Variable(torch.FloatTensor([epsilon]).cuda())
-        self.numerical_nudge = autograd.Variable(torch.FloatTensor(np.array([1e-6]))).cuda()
         self.w_matrix = None
 
     def forward(self, x):
-        perturbed = x + PerturbationNet.delta(self.w_matrix, x, self.epsilon, self.numerical_nudge)
+        perturbed = x + PerturbationNet.delta(self.w_matrix, x, self.epsilon)
 
         augmented = self.defense_augmentation(perturbed)
 
@@ -29,12 +28,12 @@ class PerturbationNet(nn.Module):
         return output
 
     @staticmethod
-    def delta(wi, x, epsilon, numerical_nudge):
+    def delta(wi, x, epsilon):
         constraint_min = torch.min(x, epsilon.expand_as(x))
-        constraint_max = torch.min((1 - x), epsilon.expand_as(x))
+        constraint_max = torch.min((1.0 - x), epsilon.expand_as(x))
 
-        return torch.clamp(constraint_min * (torch.tanh(wi)-numerical_nudge), -999, 0) + \
-            torch.clamp(constraint_max * (torch.tanh(wi)+numerical_nudge), 0, 999)
+        return torch.clamp(constraint_min * (torch.tanh(wi)), -999, 0) + \
+            torch.clamp(constraint_max * (torch.tanh(wi)), 0, 999)
 
     def set_w_matrix(self, w_matrix):
         self.w_matrix = w_matrix
@@ -51,6 +50,7 @@ class CWInspired(object):
                  n_iter=100,
                  lr=0.02,
                  targeted=False,
+                 target_nth_highest=6,
                  img_size=299,
                  batch_size=8,
                  gpu=True):
@@ -64,12 +64,13 @@ class CWInspired(object):
         self.n_iter = n_iter
         self.lr = lr
         self.targeted = targeted
+        self.target_nth_highest = target_nth_highest
         self.img_size = img_size
         self.batch_size = batch_size
         self.gpu = gpu
 
     def run(self):
-        eps = self.max_epsilon / 255.0
+        eps = self.max_epsilon / 256.0
 
         loader = data.DataLoader(
             self.dataset,
@@ -118,7 +119,7 @@ class CWInspired(object):
                 probs_perturbed = probs_perturbed_var.data.cpu().numpy()
 
                 # target = 6th why not since top 5% accuracy is so good
-                target = torch.LongTensor(np.argsort(probs_perturbed, axis=1)[:, -6])
+                target = torch.LongTensor(np.argsort(probs_perturbed, axis=1)[:, -self.target_nth_highest])
                 del probs_perturbed_var
 
             # target came either from the loader or above
@@ -139,9 +140,10 @@ class CWInspired(object):
 
             final_change = PerturbationNet.delta(batch_w_matrix,
                                                  input_var,
-                                                 autograd.Variable(torch.FloatTensor([eps]).cuda()),
-                                                 autograd.Variable(torch.FloatTensor(np.array([1e-6]))).cuda())
+                                                 autograd.Variable(torch.FloatTensor([eps]).cuda()))
             final_change = torch.clamp(final_change, -eps, eps)  # Hygiene, math should mean this is already true
+            assert torch.max(final_change).data.cpu().numpy() < eps
+            assert torch.min(final_change).data.cpu().numpy() > -eps
             final_image_tensor = input_var + final_change
             final_image_tensor = torch.clamp(final_image_tensor, 0.0,
                                              1.0)  # Hygiene, math should mean this is already true

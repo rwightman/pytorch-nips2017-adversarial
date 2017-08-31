@@ -22,6 +22,8 @@ parser.add_argument('--ensemble_weights', nargs='+', type=float,
 parser.add_argument('--checkpoint_paths', nargs='+', help='Paths to checkpoint files for each model.')
 parser.add_argument('--n_iter', type=int, default=100,
                     help='Number of iterations in optimization')
+parser.add_argument('--target_nth_highest', type=int, default=6,
+                    help='Number of iterations in optimization')
 parser.add_argument('--lr', type=float, default=0.02,
                     help='Learning rate for optimizer')
 parser.add_argument('--targeted', action='store_true', default=False,
@@ -37,9 +39,7 @@ parser.add_argument('--no_gpu', action='store_true', default=False,
 def main():
     args = parser.parse_args()
 
-    print(args.ensemble)
     cfgs = [config_from_string(s) for s in args.ensemble]
-    print(cfgs)
 
     target_model = create_ensemble(cfgs, args.ensemble_weights)
 
@@ -82,6 +82,7 @@ def main():
         n_iter=args.n_iter,
         lr=args.lr,
         targeted=args.targeted,
+        target_nth_highest=args.target_nth_highest,
         gpu=not args.no_gpu
     )
 
