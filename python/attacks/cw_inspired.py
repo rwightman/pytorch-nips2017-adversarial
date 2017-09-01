@@ -8,7 +8,6 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.utils.data as data
 import torchvision.transforms as transforms
-from torch.autograd.gradcheck import zero_gradients
 
 
 class PerturbationNet(nn.Module):
@@ -121,7 +120,7 @@ class CWInspired(object):
             for i in range(self.n_iter):
                 probs_perturbed_var = perturbation_model(input_var)
 
-                zero_gradients(batch_w_matrix)
+                optimizer.zero_grad()
 
                 loss = nllloss(torch.log(probs_perturbed_var + .000001), target=target_var)
 
@@ -142,4 +141,4 @@ class CWInspired(object):
             indices = list(range(start_index, start_index + this_batch_size))
             for filename, o in zip(self.dataset.filenames(indices, basename=True), final_image_tensor.cpu().data.numpy()):
                 output_file = os.path.join(self.output_dir, filename)
-                imsave(output_file, np.transpose(o, axes=(1, 2, 0)), format='png')
+                imsave(output_file, np.round(255.0*np.transpose(o, axes=(1, 2, 0))).astype(np.uint8), format='png')
