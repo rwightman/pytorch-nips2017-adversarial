@@ -32,8 +32,6 @@ parser.add_argument('--no_augmentation', action='store_true', default=False,
                     help='No foveation or blurring.')
 parser.add_argument('--no_augmentation_blurring', action='store_true', default=False,
                     help='No blurring.')
-parser.add_argument('--no_gpu', action='store_true', default=False,
-                    help='disables GPU training')
 
 
 def main():
@@ -83,7 +81,6 @@ def main():
         lr=args.lr,
         targeted=args.targeted,
         target_nth_highest=args.target_nth_highest,
-        gpu=not args.no_gpu
     )
 
     attack.run()

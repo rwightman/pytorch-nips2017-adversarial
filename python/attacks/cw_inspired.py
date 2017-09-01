@@ -10,30 +10,28 @@ import torch.utils.data as data
 import torchvision.transforms as transforms
 from torch.autograd.gradcheck import zero_gradients
 
+
 class PerturbationNet(nn.Module):
     def __init__(self, defense_ensemble, defense_augmentation, epsilon):
         super(PerturbationNet, self).__init__()
         self.defense_ensemble = defense_ensemble
         self.defense_augmentation = defense_augmentation
-        self.epsilon = autograd.Variable(torch.FloatTensor([epsilon]).cuda())
+        self.epsilon = epsilon
         self.w_matrix = None
 
     def forward(self, x):
         perturbed = x + PerturbationNet.delta(self.w_matrix, x, self.epsilon)
-
         augmented = self.defense_augmentation(perturbed)
-
         output = self.defense_ensemble(augmented)
-
         return output
 
     @staticmethod
     def delta(wi, x, epsilon):
-        constraint_min = torch.min(x, epsilon.expand_as(x))
-        constraint_max = torch.min((1.0 - x), epsilon.expand_as(x))
+        constraint_min = torch.clamp(x, max=epsilon)
+        constraint_max = torch.clamp((1 - x), max=epsilon)
 
-        return torch.clamp(constraint_min * (torch.tanh(wi)), -999, 0) + \
-            torch.clamp(constraint_max * (torch.tanh(wi)), 0, 999)
+        return torch.clamp(constraint_min * torch.tanh(wi), -999, 0) + \
+            torch.clamp(constraint_max * torch.tanh(wi), 0, 999)
 
     def set_w_matrix(self, w_matrix):
         self.w_matrix = w_matrix
@@ -52,8 +50,7 @@ class CWInspired(object):
                  targeted=False,
                  target_nth_highest=6,
                  img_size=299,
-                 batch_size=8,
-                 gpu=True):
+                 batch_size=8):
         super(CWInspired, self).__init__()
         self.input_dir = input_dir
         self.output_dir = output_dir
@@ -67,7 +64,6 @@ class CWInspired(object):
         self.target_nth_highest = target_nth_highest
         self.img_size = img_size
         self.batch_size = batch_size
-        self.gpu = gpu
 
     def run(self):
         eps = self.max_epsilon / 256.0
@@ -84,23 +80,18 @@ class CWInspired(object):
         ])
         self.dataset.set_transform(tf)
 
-
         perturbation_model = PerturbationNet(
             self.target_ensemble,
             self.defense_augmentation,
             eps
         )
 
-        if self.gpu:
-            perturbation_model.cuda()
+        perturbation_model.cuda()
 
-        nllloss = torch.nn.NLLLoss()
-        if self.gpu:
-            nllloss = nllloss.cuda()
+        nllloss = torch.nn.NLLLoss().cuda()
 
         for batch_idx, (input, target) in enumerate(loader):
-            if self.gpu:
-                input = input.cuda()
+            input = input.cuda()
 
             input_var = autograd.Variable(input, volatile=False, requires_grad=True)
 
@@ -109,7 +100,7 @@ class CWInspired(object):
 
             batch_w_matrix = autograd.Variable(
                 #torch.FloatTensor(np.random.normal(loc=0,scale=0.33,size=(this_batch_size, 3, self.img_size, self.img_size))).cuda(),
-                torch.FloatTensor(np.zeros((this_batch_size, 3, self.img_size, self.img_size))).cuda(),
+                torch.zeros(this_batch_size, 3, self.img_size, self.img_size).cuda(),
                 requires_grad=True)
             perturbation_model.set_w_matrix(batch_w_matrix)
 
@@ -132,15 +123,16 @@ class CWInspired(object):
 
                 zero_gradients(batch_w_matrix)
 
-                loss = nllloss(torch.log(probs_perturbed_var), target=target_var)
+                loss = nllloss(torch.log(probs_perturbed_var + .000001), target=target_var)
 
                 loss.backward()
 
                 optimizer.step()
 
-            final_change = PerturbationNet.delta(batch_w_matrix,
-                                                 input_var,
-                                                 autograd.Variable(torch.FloatTensor([eps]).cuda()))
+            final_change = PerturbationNet.delta(
+                batch_w_matrix,
+                input_var,
+                eps)
             final_change = torch.clamp(final_change, -eps, eps)  # Hygiene, math should mean this is already true
             final_image_tensor = input_var + final_change
             final_image_tensor = torch.clamp(final_image_tensor, 0.0,
