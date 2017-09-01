@@ -8,7 +8,6 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.utils.data as data
 import torchvision.transforms as transforms
-from torch.autograd.gradcheck import zero_gradients
 
 
 class PerturbationNet(nn.Module):
@@ -121,7 +120,7 @@ class CWInspired(object):
             for i in range(self.n_iter):
                 probs_perturbed_var = perturbation_model(input_var)
 
-                zero_gradients(batch_w_matrix)
+                optimizer.zero_grad()
 
                 loss = nllloss(torch.log(probs_perturbed_var + .000001), target=target_var)
 
