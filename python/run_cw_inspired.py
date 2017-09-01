@@ -32,6 +32,8 @@ parser.add_argument('--no_augmentation', action='store_true', default=False,
                     help='No foveation or blurring.')
 parser.add_argument('--no_augmentation_blurring', action='store_true', default=False,
                     help='No blurring.')
+parser.add_argument('--batch_size', type=int, default=8, metavar='N',
+                    help='Batch size (default: 16)')
 
 
 def main():
@@ -81,6 +83,7 @@ def main():
         lr=args.lr,
         targeted=args.targeted,
         target_nth_highest=args.target_nth_highest,
+        batch_size=args.batch_size
     )
 
     attack.run()

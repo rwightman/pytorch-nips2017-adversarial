@@ -137,12 +137,6 @@ class CWInspired(object):
             final_image_tensor = torch.clamp(final_image_tensor, 0.0,
                                              1.0)  # Hygiene, math should mean this is already true
 
-
-            np.save(os.path.join(self.output_dir, 'input_var{}'.format(batch_idx)), input_var.data.cpu().numpy())
-            np.save(os.path.join(self.output_dir, 'final_change{}'.format(batch_idx)), final_change.data.cpu().numpy())
-            np.save(os.path.join(self.output_dir, 'final_image_tensor{}'.format(batch_idx)), final_image_tensor.data.cpu().numpy())
-
-
             start_index = self.batch_size * batch_idx
             indices = list(range(start_index, start_index + this_batch_size))
             for filename, o in zip(self.dataset.filenames(indices, basename=True), final_image_tensor.cpu().data.numpy()):
