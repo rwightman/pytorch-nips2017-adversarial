@@ -35,7 +35,7 @@ def main():
                                    args.attack_name,
                                    im), 'rb') as f:
                 perturbed_image = Image.open(f).convert('RGB')
-                original_image = np.array(perturbed_image).astype(np.float)
+                perturbed_image = np.array(perturbed_image).astype(np.float)
 
             dif = perturbed_image - original_image
             abs_dif = np.abs(dif)
