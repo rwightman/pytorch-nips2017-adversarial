@@ -32,8 +32,8 @@ parser.add_argument('--no_augmentation', action='store_true', default=False,
                     help='No foveation or blurring.')
 parser.add_argument('--no_augmentation_blurring', action='store_true', default=False,
                     help='No blurring.')
-parser.add_argument('--batch_size', type=int, default=8, metavar='N',
-                    help='Batch size (default: 16)')
+parser.add_argument('--batch_size', type=int, default=20, metavar='N',
+                    help='Batch size (default: 20)')
 
 
 def main():
@@ -57,14 +57,14 @@ def main():
     else:
         if args.no_augmentation_blurring:
             augmentation = augmentations.AugmentationComposer([
-                augmentations.RandomCrop(269),
-                augmentations.Mirror(0.5)
+                augmentations.Mirror(0.5),
+                augmentations.RandomCrop(),  # augmentations.RandomCrop(269),
             ])
         else:
             augmentation = augmentations.AugmentationComposer([
-                augmentations.RandomCrop(269),
                 augmentations.Mirror(0.5),
-                augmentations.Blur(0.5, 0.5)
+                augmentations.Blur(0.5, 0.5),
+                augmentations.RandomCrop(),  # augmentations.RandomCrop(269),
             ])
 
     if args.targeted:
