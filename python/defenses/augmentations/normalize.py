@@ -17,7 +17,7 @@ class NormalizeInception(nn.Module):
     def __init__(self):
         super(NormalizeInception, self).__init__()
 
-    def __call__(self, x):
+    def forward(self, x):
         return (x - 0.5) * 2.0
 
 
@@ -30,7 +30,7 @@ class NormalizeTorchvision(nn.Module):
         self.std = autograd.Variable(
             torch.FloatTensor([0.229, 0.224, 0.225]).view(-1, 1, 1).cuda())
 
-    def __call__(self, x):
+    def forward(self, x):
         return (x - self.mean) / self.std
 
 
@@ -42,6 +42,6 @@ class NormalizeDpn(nn.Module):
             torch.FloatTensor([124.0/255, 117.0/255, 104.0/255]).view(-1, 1, 1).cuda())
         self.scale = 4.2585
 
-    def __call__(self, x):
+    def forward(self, x):
         return (x - self.mean) * self.scale
 
