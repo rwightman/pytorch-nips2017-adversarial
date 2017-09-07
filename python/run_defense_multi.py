@@ -28,22 +28,13 @@ parser.add_argument('--batch_size', type=int, default=100, metavar='N',
 
 TIME_LIMIT = 2000
 
-CHECKPOINTS = {
-    'inceptionv3': 'inception_v3_google-1a9a5a14.pth',
-    'densenet121': 'densenet121-fixed.pth',
-    'densenet169': 'densenet169-clean.pth',
-    'fbresnet200': 'fbresnet200.pth',
-    'inception_resnet_v2': 'adv_inception_resnet_v2.pth',
-    'dpn107': 'dpn107_extra-fc014e8ec.pth',
-    'wrn50': 'wrn50.pth'
-}
 
 
 def main():
     args = parser.parse_args()
     assert args.input_dir
 
-    dataset = Dataset(args.input_dir)
+    dataset = Dataset(args.input_dir, target_file='')
 
     model_configs = OrderedDict()
     model_configs['dpn107'] = {
@@ -55,7 +46,7 @@ def main():
         'num_samples': 2,
         'num_classes': 1000}
     model_configs['inception_resnet_v2'] = {
-        'processors': processing.build_4crop_augmentation(target_size=299, norm='inception'),
+        'processors': processing.build_4crop_augmentation(target_size=299, norm='le'),
         'num_samples': 2,
         'num_classes': 1001}
     # model_args['densenet169'] = {

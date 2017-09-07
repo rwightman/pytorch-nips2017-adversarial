@@ -35,7 +35,7 @@ parser.add_argument('--batch_size', type=int, default=100, metavar='N',
                     help='Batch size (default: 32)')
 
 
-TIME_LIMIT = 500
+TIME_LIMIT = 3000
 
 CHECKPOINTS = {
     'inceptionv3': 'inception_v3_google-1a9a5a14.pth',
@@ -44,6 +44,8 @@ CHECKPOINTS = {
     'fbresnet200': 'fbresnet200.pth',
     'inception_resnet_v2': 'adv_inception_resnet_v2.pth',
     'dpn107': 'dpn107_extra-fc014e8ec.pth',
+    'dpn68b': 'dpn68_extra.pth',
+    'dpn68': 'dpn68-abcc47ae.pth',
     'wrn50': 'wrn50.pth'
 }
 

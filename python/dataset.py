@@ -1,4 +1,5 @@
 import torch.utils.data as data
+from torchvision import transforms
 
 from PIL import Image
 import os
@@ -27,7 +28,7 @@ class Dataset(data.Dataset):
             self,
             root,
             target_file='target_class.csv',
-            transform=None):
+            transform=transforms.ToTensor()):
 
         if target_file:
             target_df = pd.read_csv(os.path.join(root, target_file), header=None)
