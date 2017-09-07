@@ -9,44 +9,23 @@ import os
 import numpy as np
 import csv
 import torch
-import torchvision
 import torch.utils.data as data
 
 from scipy.misc import imsave
-from dataset import Dataset, default_inception_transform
+from models import model_factory
 
 
-def run_attack(args, attack):
-    assert args.input_dir
-
-    transform = default_inception_transform(args.img_size)
-    if args.targeted:
-        if args.random_target:
-            dataset = Dataset(args.input_dir, target_file='', transform=transform, random_target=True)
-        else:
-            dataset = Dataset(args.input_dir, transform=transform)
-    else:
-        dataset = Dataset(args.input_dir, target_file='', transform=transform)
+def run_attack(args, attack, dataset):
 
     loader = data.DataLoader(
         dataset,
         batch_size=args.batch_size,
         shuffle=False)
 
-    model = torchvision.models.inception_v3(pretrained=False, transform_input=False)
-    if not args.no_gpu:
-        model = model.cuda()
-
-    if args.checkpoint_path is not None and os.path.isfile(args.checkpoint_path):
-        checkpoint = torch.load(args.checkpoint_path)
-        if isinstance(checkpoint, dict) and 'state_dict' in checkpoint:
-            model.load_state_dict(checkpoint['state_dict'])
-        else:
-            model.load_state_dict(checkpoint)
-    else:
-        print("Error: No checkpoint found at %s." % args.checkpoint_path)
+    model = model_factory.create_model('inception_v3', checkpoint_path=args.checkpoint_path).cuda()
 
     model.eval()
+
     for batch_idx, (input, target) in enumerate(loader):
         print("Batch %d of %d" % (batch_idx, len(loader)))
         if not args.no_gpu:
@@ -63,7 +42,7 @@ def run_attack(args, attack):
             output_targets.append((filename, t))
             output_file = os.path.join(args.output_dir, filename)
             os.makedirs(os.path.dirname(output_file), exist_ok=True)
-            imsave(output_file, (o + 1.0) * 0.5, format='png')
+            imsave(output_file, np.round(255 * (o + 1.0) * 0.5).astype(np.uint8), format='png')
             with open(os.path.join(args.output_dir, 'output_targets.csv'), mode='a') as cf:
                 dw = csv.writer(cf)
                 dw.writerows(output_targets)

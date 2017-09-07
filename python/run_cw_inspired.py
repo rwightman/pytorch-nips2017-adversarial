@@ -42,16 +42,11 @@ def main():
 
     cfgs = [config_from_string(s) for s in args.ensemble]
 
-    target_model = create_ensemble(cfgs, args.ensemble_weights)
+    target_model = create_ensemble(cfgs, args.ensemble_weights, args.checkpoint_paths)
 
-    for cfg, model, checkpoint_path in zip(cfgs, target_model.models, args.checkpoint_paths):
-        checkpoint = torch.load(checkpoint_path)
-        if isinstance(checkpoint, dict) and 'state_dict' in checkpoint:
-            model.model.load_state_dict(checkpoint['state_dict'])
-        else:
-            model.model.load_state_dict(checkpoint)
-        model.model.cuda()
-        model.model.eval()
+    for transformed_model in target_model.models:
+        transformed_model.model.cuda()
+        transformed_model.model.eval()
 
     if args.no_augmentation:
         augmentation = lambda x: x

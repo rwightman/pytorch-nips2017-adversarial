@@ -8,6 +8,7 @@ from .my_resnet import resnet18, resnet34, resnet50, resnet101, resnet152
 from .fbresnet200 import fbresnet200
 from .dpn import dpn68, dpn68b, dpn92, dpn98, dpn131, dpn107
 from .transformed_model import TransformedModel
+from .load_checkpoint import load_checkpoint
 
 model_name_normalizer_name_mapping = {
     'dpn68': 'dualpathnet',
@@ -47,12 +48,13 @@ model_name_normalizer_name_mapping = {
 
 def create_model(
         model_name='resnet50',
-        pretrained=True,
+        pretrained=False,
         num_classes=1000,
         input_size=0,
         normalizer='',
         drop_first_class=False,
         output_fn='',
+        checkpoint_path='',
         **kwargs):
 
     if 'test_time_pool' in kwargs:
@@ -135,6 +137,9 @@ def create_model(
         model = torchvision.models.alexnet(pretrained=pretrained)
     else:
         assert False and "Invalid model"
+
+    if checkpoint_path and not pretrained:
+        load_checkpoint(model, checkpoint_path)
 
     if input_size or normalizer or drop_first_class or output_fn:
         model = TransformedModel(

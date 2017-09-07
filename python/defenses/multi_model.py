@@ -91,21 +91,10 @@ class MultiModel:
             model_start = time.time()
             num_classes = config['num_classes']
             processors = config['processors']
-            model = create_model(arch, pretrained=False, num_classes=num_classes).cuda()
+            model = create_model(
+                arch, num_classes=num_classes, checkpoint_path=CHECKPOINTS[arch]).cuda()
 
             model.eval()
-
-            checkpoint_path = CHECKPOINTS[arch]
-            if checkpoint_path is not None and os.path.isfile(checkpoint_path):
-                print('Loading checkpoint', checkpoint_path)
-                checkpoint = torch.load(checkpoint_path)
-                if isinstance(checkpoint, dict) and 'state_dict' in checkpoint:
-                    model.load_state_dict(checkpoint['state_dict'])
-                else:
-                    model.load_state_dict(checkpoint)
-            else:
-                print("Error: No checkpoint found for %s at %s." % (arch, checkpoint_path))
-                continue
 
             batch_time = AverageMeter()
             outputs_batch = []
