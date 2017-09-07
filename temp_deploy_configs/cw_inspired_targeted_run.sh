@@ -18,7 +18,7 @@ python python/run_cw_inspired.py \
   --input_dir="${INPUT_DIR}" \
   --output_dir="${OUTPUT_DIR}" \
   --max_epsilon="${MAX_EPSILON}" \
-  --ensemble AdvInceptionResnetV2 Inceptionv3 \
+  --ensemble adv_inception_resnet_v2 inception_v3 \
   --ensemble_weights 1.0 1.0 \
   --checkpoint_paths adv_inception_resnet_v2.pth inception_v3_google-1a9a5a14.pth \
   --targeted \

@@ -71,7 +71,7 @@ def build_4crop_augmentation(target_size, norm='torchvision'):
     augs.append(build_fixed_augmentation(
         target_size, mirror=True, crop_ratio=1.0, blur=2, norm=norm))
     augs.append(build_fixed_augmentation(
-        target_size, mirror=False, crop_ratio=0.875,  blur=0, norm=norm))
+        target_size, mirror=False, crop_ratio=0.875, blur=0, norm=norm))
     augs.append(build_fixed_augmentation(
         target_size, mirror=True, crop_ratio=0.9125, blur=0, norm=norm))
     return augs

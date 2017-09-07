@@ -2,20 +2,23 @@ import torch
 import torch.nn as nn
 import torch.autograd as autograd
 
+
 def get_normalizer(name):
-    if 'inception' in name:
-        return NormalizeInception()
-    elif 'dpn' in name:
+    if name == 'le':
+        return NormalizeLe()
+    elif name == 'dpn':
         return NormalizeDpn()
-    else:
+    elif name == 'torchvision':
         return NormalizeTorchvision()
+    else:
+        assert False, 'Error: Unknown normalizer specified'
 
 
-class NormalizeInception(nn.Module):
+class NormalizeLe(nn.Module):
     """Normalize to -1..1 in Google Inception style
     """
     def __init__(self):
-        super(NormalizeInception, self).__init__()
+        super(NormalizeLe, self).__init__()
 
     def forward(self, x):
         return (x - 0.5) * 2.0

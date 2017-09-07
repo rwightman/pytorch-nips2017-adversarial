@@ -15,7 +15,7 @@ class Ensemble(nn.Module):
 
     def forward(self, x):
         outputs = [model(x) for model in self.models]
-
+        print(outputs)
         o = torch.pow(outputs[0], self.ensembling_weights[0])
         for idx in range(len(outputs)-1):
             o = torch.mul(o, torch.pow(outputs[idx+1], self.ensembling_weights[idx+1]))

@@ -7,10 +7,7 @@ from .my_densenet import densenet161, densenet121, densenet169, densenet201
 from .my_resnet import resnet18, resnet34, resnet50, resnet101, resnet152
 from .fbresnet200 import fbresnet200
 from .dpn import dpn68, dpn68b, dpn92, dpn98, dpn131, dpn107
-from .normalized_model import NormalizedModel
-from .self_resizing_model import SelfResizingModel
-from .standardized_output_model import StandardizedOutputModel
-from normalizations.normalizer_factory import get_normalizer
+from .transformed_model import TransformedModel
 
 model_name_normalizer_name_mapping = {
     'dpn68': 'dualpathnet',
@@ -52,20 +49,16 @@ def create_model(
         model_name='resnet50',
         pretrained=True,
         num_classes=1000,
-        normalize_inputs=False,
-        resize_inputs=False,
-        standardize_outputs=False,
+        input_size=0,
+        normalizer='',
+        drop_first_class=False,
+        output_fn='',
         **kwargs):
 
     if 'test_time_pool' in kwargs:
         test_time_pool = kwargs.pop('test_time_pool')
     else:
         test_time_pool = True
-
-    if 'drop_first_class' in kwargs:
-        drop_first_class = kwargs.pop('drop_first_class')
-    if 'input_size' in kwargs:
-        input_size = kwargs.pop('input_size')
 
     if model_name == 'dpn68':
         model = dpn68(
@@ -143,15 +136,14 @@ def create_model(
     else:
         assert False and "Invalid model"
 
-    if resize_inputs:
-        model = SelfResizingModel(model=model, input_size=input_size)
-
-    if normalize_inputs:
-        normalizer = get_normalizer(model_name_normalizer_name_mapping[model_name])
-        model = NormalizedModel(model=model, normalizer=normalizer)
-
-    if standardize_outputs:
-        model = StandardizedOutputModel(model, drop_first_class=drop_first_class)
+    if input_size or normalizer or drop_first_class or output_fn:
+        model = TransformedModel(
+            model=model,
+            input_size=input_size,
+            normalizer=normalizer,
+            output_fn=output_fn,
+            drop_first_class=drop_first_class,
+        )
 
     return model
 

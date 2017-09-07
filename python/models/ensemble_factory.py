@@ -1,4 +1,4 @@
-from .ensemble import  Ensemble
+from .ensemble import Ensemble
 from .model_factory import create_model
 
 
@@ -9,11 +9,10 @@ def create_ensemble(model_configs, ensembling_weights):
             model_name=mc['model_name'],
             pretrained=mc['pretrained'],
             num_classes=mc['num_classes'],
-            normalize_inputs=mc['normalize_inputs'],
-            resize_inputs=mc['resize_inputs'],
             input_size=mc['input_size'],
-            standardize_outputs=mc['standardize_outputs'],
+            normalizer=mc['normalizer'],
+            output_fn=mc['output_fn'],
             drop_first_class=mc['drop_first_class']
         ))
 
-    return Ensemble(models,ensembling_weights)
+    return Ensemble(models, ensembling_weights)

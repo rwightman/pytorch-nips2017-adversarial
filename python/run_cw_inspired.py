@@ -1,13 +1,14 @@
 import argparse
 import os
 import torch
+import torch.nn as nn
 
 from attacks.cw_inspired import CWInspired
 from dataset import Dataset
 
 from models import create_ensemble
 from experiments.model_configs import config_from_string
-import augmentations
+import processing
 
 parser = argparse.ArgumentParser(description='Defence')
 parser.add_argument('--input_dir', metavar='DIR',
@@ -46,26 +47,26 @@ def main():
     for cfg, model, checkpoint_path in zip(cfgs, target_model.models, args.checkpoint_paths):
         checkpoint = torch.load(checkpoint_path)
         if isinstance(checkpoint, dict) and 'state_dict' in checkpoint:
-            model.get_core_model().load_state_dict(checkpoint['state_dict'])
+            model.model.load_state_dict(checkpoint['state_dict'])
         else:
-            model.get_core_model().load_state_dict(checkpoint)
-        model.get_core_model().cuda()
-        model.get_core_model().eval()
+            model.model.load_state_dict(checkpoint)
+        model.model.cuda()
+        model.model.eval()
 
     if args.no_augmentation:
         augmentation = lambda x: x
     else:
         if args.no_augmentation_blurring:
-            augmentation = augmentations.AugmentationComposer([
-                augmentations.Mirror(0.5),
-                augmentations.RandomCrop(),  # augmentations.RandomCrop(269),
-            ])
+            augmentation = nn.Sequential(
+                processing.RandomMirror(0.5),
+                processing.RandomCrop(),  # augmentations.RandomCrop(269),
+            )
         else:
-            augmentation = augmentations.AugmentationComposer([
-                augmentations.Mirror(0.5),
-                augmentations.Blur(0.5, 0.5),
-                augmentations.RandomCrop(),  # augmentations.RandomCrop(269),
-            ])
+            augmentation = nn.Sequential(
+                processing.RandomMirror(0.5),
+                processing.RandomBlur(0.5, 0.5),
+                processing.RandomCrop(),  # augmentations.RandomCrop(269),
+            )
 
     if args.targeted:
         dataset = Dataset(args.input_dir)
