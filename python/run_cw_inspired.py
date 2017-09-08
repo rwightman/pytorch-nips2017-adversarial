@@ -1,13 +1,14 @@
 import argparse
 import os
 import torch
+import torch.nn as nn
 
 from attacks.cw_inspired import CWInspired
 from dataset import Dataset
 
 from models import create_ensemble
 from experiments.model_configs import config_from_string
-import augmentations
+import processing
 
 parser = argparse.ArgumentParser(description='Defence')
 parser.add_argument('--input_dir', metavar='DIR',
@@ -32,8 +33,8 @@ parser.add_argument('--no_augmentation', action='store_true', default=False,
                     help='No foveation or blurring.')
 parser.add_argument('--no_augmentation_blurring', action='store_true', default=False,
                     help='No blurring.')
-parser.add_argument('--batch_size', type=int, default=8, metavar='N',
-                    help='Batch size (default: 16)')
+parser.add_argument('--batch_size', type=int, default=20, metavar='N',
+                    help='Batch size (default: 20)')
 
 
 def main():
@@ -41,31 +42,26 @@ def main():
 
     cfgs = [config_from_string(s) for s in args.ensemble]
 
-    target_model = create_ensemble(cfgs, args.ensemble_weights)
+    target_model = create_ensemble(cfgs, args.ensemble_weights, args.checkpoint_paths)
 
-    for cfg, model, checkpoint_path in zip(cfgs, target_model.models, args.checkpoint_paths):
-        checkpoint = torch.load(checkpoint_path)
-        if isinstance(checkpoint, dict) and 'state_dict' in checkpoint:
-            model.get_core_model().load_state_dict(checkpoint['state_dict'])
-        else:
-            model.get_core_model().load_state_dict(checkpoint)
-        model.get_core_model().cuda()
-        model.get_core_model().eval()
+    for transformed_model in target_model.models:
+        transformed_model.model.cuda()
+        transformed_model.model.eval()
 
     if args.no_augmentation:
         augmentation = lambda x: x
     else:
         if args.no_augmentation_blurring:
-            augmentation = augmentations.AugmentationComposer([
-                augmentations.RandomCrop(269),
-                augmentations.Mirror(0.5)
-            ])
+            augmentation = nn.Sequential(
+                processing.RandomMirror(0.5),
+                processing.RandomCrop(),  # augmentations.RandomCrop(269),
+            )
         else:
-            augmentation = augmentations.AugmentationComposer([
-                augmentations.RandomCrop(269),
-                augmentations.Mirror(0.5),
-                augmentations.Blur(0.5, 0.5)
-            ])
+            augmentation = nn.Sequential(
+                processing.RandomMirror(0.5),
+                processing.RandomBlur(0.5, 0.5),
+                processing.RandomCrop(),  # augmentations.RandomCrop(269),
+            )
 
     if args.targeted:
         dataset = Dataset(args.input_dir)

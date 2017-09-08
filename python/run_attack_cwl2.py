@@ -8,8 +8,9 @@ from __future__ import print_function
 
 import argparse
 
-from attacks import AttackCarliniWagnerL2
-from runner import run_attack
+from attacks.attack_carlini_wagner_l2 import AttackCarliniWagnerL2
+from attacks.attack_runner import run_attack
+from dataset import Dataset, default_inception_transform
 
 parser = argparse.ArgumentParser(description='Defence')
 parser.add_argument('--input_dir', metavar='DIR',
@@ -38,6 +39,16 @@ parser.add_argument('--debug', action='store_true', default=False,
 
 def main():
     args = parser.parse_args()
+
+    transform = default_inception_transform(args.img_size)
+    if args.targeted:
+        if args.random_target:
+            dataset = Dataset(args.input_dir, target_file='', transform=transform, random_target=True)
+        else:
+            dataset = Dataset(args.input_dir, transform=transform)
+    else:
+        dataset = Dataset(args.input_dir, target_file='', transform=transform)
+
     attack = AttackCarliniWagnerL2(
         targeted=args.targeted,
         max_steps=args.steps,
@@ -45,7 +56,7 @@ def main():
         cuda=not args.no_gpu,
         debug=args.debug)
 
-    run_attack(args, attack)
+    run_attack(args, attack, dataset)
 
 if __name__ == '__main__':
     main()

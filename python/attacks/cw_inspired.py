@@ -1,5 +1,8 @@
 import os
+import sys
+import time
 import numpy as np
+import math
 from scipy.misc import imsave
 
 import torch
@@ -8,6 +11,8 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.utils.data as data
 import torchvision.transforms as transforms
+
+TIME_LIMIT_PER_100 = 500  #FIXME make arg
 
 
 class PerturbationNet(nn.Module):
@@ -49,7 +54,7 @@ class CWInspired(object):
                  targeted=False,
                  target_nth_highest=6,
                  img_size=299,
-                 batch_size=8):
+                 batch_size=20):
         super(CWInspired, self).__init__()
         self.input_dir = input_dir
         self.output_dir = output_dir
@@ -65,6 +70,8 @@ class CWInspired(object):
         self.batch_size = batch_size
 
     def run(self):
+        attack_start = time.time()
+
         eps = self.max_epsilon / 256.0
 
         loader = data.DataLoader(
@@ -83,22 +90,23 @@ class CWInspired(object):
             self.target_ensemble,
             self.defense_augmentation,
             eps
-        )
-
-        perturbation_model.cuda()
+        ).cuda()
 
         nllloss = torch.nn.NLLLoss().cuda()
 
+        time_limit = TIME_LIMIT_PER_100 * ((len(self.dataset) - 1) // 100 + 1)
+        time_limit_per_batch = time_limit / len(loader)
+        iter_time = AverageMeter()
         for batch_idx, (input, target) in enumerate(loader):
-            input = input.cuda()
+            iter_start = time.time()
 
+            input = input.cuda()
             input_var = autograd.Variable(input, volatile=False, requires_grad=True)
 
             # In case of the final batch not being complete
             this_batch_size = input_var.size(0)
 
             batch_w_matrix = autograd.Variable(
-                #torch.FloatTensor(np.random.normal(loc=0,scale=0.33,size=(this_batch_size, 3, self.img_size, self.img_size))).cuda(),
                 torch.zeros(this_batch_size, 3, self.img_size, self.img_size).cuda(),
                 requires_grad=True)
             perturbation_model.set_w_matrix(batch_w_matrix)
@@ -109,7 +117,8 @@ class CWInspired(object):
                 probs_perturbed = probs_perturbed_var.data.cpu().numpy()
 
                 # target = 6th why not since top 5% accuracy is so good
-                target = torch.LongTensor(np.argsort(probs_perturbed, axis=1)[:, -self.target_nth_highest])
+                target = torch.LongTensor(
+                    np.argsort(probs_perturbed, axis=1)[:, -self.target_nth_highest])
                 del probs_perturbed_var
 
             # target came either from the loader or above
@@ -119,26 +128,62 @@ class CWInspired(object):
 
             for i in range(self.n_iter):
                 probs_perturbed_var = perturbation_model(input_var)
-
                 optimizer.zero_grad()
-
-                loss = nllloss(torch.log(probs_perturbed_var + .000001), target=target_var)
-
+                loss = nllloss(torch.log(probs_perturbed_var + 1e-8), target=target_var)
                 loss.backward()
-
                 optimizer.step()
 
-            final_change = PerturbationNet.delta(
-                batch_w_matrix,
-                input_var,
-                eps)
+                # measure elapsed time
+                current = time.time()
+                iter_time.update(current - iter_start)
+                total_elapsed = current - attack_start
+                if total_elapsed > (time_limit - 30):
+                    print("Warning: time critical, %s" % total_elapsed)
+                    if i > 10 and total_elapsed > (time_limit - 15):
+                        print("Warning: breaking early at %d, time critical, %s"
+                              % (i, total_elapsed))
+                        sys.stdout.flush()
+                        break
+                if time_limit_per_batch and iter_time.count > 20:
+                    iter_limit = math.floor(time_limit_per_batch / (iter_time.avg * 1.05))
+                    if i >= iter_limit:
+                        print('Breaking early at %d due to time constraints' % i)
+                        sys.stdout.flush()
+                        break
+                iter_start = time.time()
+
+            final_change = PerturbationNet.delta(batch_w_matrix, input_var, eps)
             final_change = torch.clamp(final_change, -eps, eps)  # Hygiene, math should mean this is already true
             final_image_tensor = input_var + final_change
-            final_image_tensor = torch.clamp(final_image_tensor, 0.0,
-                                             1.0)  # Hygiene, math should mean this is already true
+            final_image_tensor = torch.clamp(
+                final_image_tensor, 0.0,
+                1.0)  # Hygiene, math should mean this is already true
 
             start_index = self.batch_size * batch_idx
             indices = list(range(start_index, start_index + this_batch_size))
-            for filename, o in zip(self.dataset.filenames(indices, basename=True), final_image_tensor.cpu().data.numpy()):
+            for filename, o in zip(
+                    self.dataset.filenames(indices, basename=True), final_image_tensor.cpu().data.numpy()):
                 output_file = os.path.join(self.output_dir, filename)
-                imsave(output_file, np.round(255.0*np.transpose(o, axes=(1, 2, 0))).astype(np.uint8), format='png')
+                imsave(
+                    output_file,
+                    np.round(255.0 * np.transpose(o, axes=(1, 2, 0))).astype(np.uint8),
+                    format='png')
+
+
+class AverageMeter(object):
+    """Computes and stores the average and current value"""
+
+    def __init__(self):
+        self.reset()
+
+    def reset(self):
+        self.val = 0
+        self.avg = 0
+        self.sum = 0
+        self.count = 0
+
+    def update(self, val, n=1):
+        self.val = val
+        self.sum += val * n
+        self.count += n
+        self.avg = self.sum / self.count

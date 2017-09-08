@@ -300,7 +300,6 @@ class InceptionResnetV2(nn.Module):
 
 
 def inception_resnet_v2(pretrained=False, num_classes=1001, **kwargs):
-    print(num_classes, kwargs)
     r"""InceptionResnetV2 model architecture from the
     `"InceptionV4, Inception-ResNet..." <https://arxiv.org/abs/1602.07261>`_ paper.
 

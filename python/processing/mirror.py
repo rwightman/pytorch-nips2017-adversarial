@@ -1,13 +1,12 @@
 import numpy as np
 import torch
+import torch.nn as nn
 import torch.autograd as autograd
 
-from .augmentation import Augmentation
 
-
-class Mirror(Augmentation):
+class RandomMirror(nn.Module):
     def __init__(self, mirror_prob):
-        super(Mirror, self).__init__()
+        super(RandomMirror, self).__init__()
         self.mirror_prob = mirror_prob
         self.inv_idx = None
 
@@ -21,5 +20,19 @@ class Mirror(Augmentation):
             mirrored = x.index_select(3, self.inv_idx)
         else:
             mirrored = x
+
+        return mirrored
+
+
+class Mirror(nn.Module):
+    def __init__(self, ):
+        super(Mirror, self).__init__()
+        self.inv_idx = None
+
+    def forward(self, x):
+        input_size = x.size(2)
+        if self.inv_idx is None:
+            self.inv_idx = autograd.Variable(torch.arange(input_size-1, -1, -1).long()).cuda()
+        mirrored = x.index_select(3, self.inv_idx)
 
         return mirrored
