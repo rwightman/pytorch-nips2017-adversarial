@@ -52,3 +52,6 @@ class TransformedModel(nn.Module):
             o = self.post(o)
         return o
 
+    def get_core_model(self):
+        return self.model
+

@@ -74,6 +74,7 @@ def run_cw_inspired_experiment(
         python_cmd.extend(ensemble)
         python_cmd.append('--ensemble_weights')
         python_cmd.extend([str(e) for e in ensemble_weights])
+        python_cmd.extend(['--batch_size','8'])
 
         cmd = [
             'nvidia-docker','run',
@@ -142,50 +143,44 @@ def complete_remaining():
             run_base_defense_experiment([d], [1.0], a, True)
 
 all_models = [
-    'Inceptionv3',
-    'Resnet18',
-    'Resnet34',
-    'Resnet50',
-    'Resnet101',
-    'Resnet152',
-    'DenseNet121',
-    'DenseNet169',
-    'DenseNet201',
-    'DenseNet161',
-    'AdvInceptionResnetV2',
-    'InceptionResnetV2',
-    'SqueezeNet1_0',
-    'SqueezeNet1_1',
-    'AlexNet',
-    'DPN107Extra',
-    'DPN92Extra',
-    'DPN92',
-    'DPN68'
+    'inception_v3',
+    'resnet18',
+    'resnet34',
+    'resnet50',
+    'resnet101',
+    'resnet152',
+    'densenet121',
+    'densenet169',
+    'densenet201',
+    'densenet161',
+    'adv_inception_resnet_v2',
+    'inception_resnet_v2',
+    'squeezenet1_0',
+    'squeezenet1_1',
+    'alexnet',
+    'dpn107',
+    'dpn92_extra',
+    'dpn92',
+    'dpn68'
 ]
 
 models_exclude_for_attack = ['DPN107Extra']
 all_models_for_attacks = [m for m in all_models if m not in models_exclude_for_attack]
 
-run_cw_inspired_experiment(['AdvInceptionResnetV2', 'Inceptionv3'],[1.0, 1.0],targeted=True,lr=0.02)
-complete_remaining()
-run_cw_inspired_experiment(['AdvInceptionResnetV2', 'Inceptionv3'],[1.0, 1.0],targeted=True,lr=0.04)
-complete_remaining()
-run_cw_inspired_experiment(['AdvInceptionResnetV2', 'Inceptionv3'],[1.0, 1.0],targeted=True,lr=0.08)
-complete_remaining()
-run_cw_inspired_experiment(['AdvInceptionResnetV2', 'Inceptionv3'],[1.0, 1.0],targeted=True,lr=0.16)
-complete_remaining()
-run_cw_inspired_experiment(['AdvInceptionResnetV2', 'Inceptionv3'],[1.0, 1.0],targeted=True,lr=0.32)
-complete_remaining()
+
+
+run_cw_inspired_experiment(['adv_inception_resnet_v2', 'inception_v3'],[1.0, 1.0],targeted=True,lr=0.08,no_augmentation=True)
+run_cw_inspired_experiment(['adv_inception_resnet_v2', 'inception_v3', 'resnet34'],[1.0, 1.0, 0.885],targeted=False,lr=0.16,n_iter=80,target_nth_highest=1000)
 
 
 # Cleanup!
-"""
 complete_remaining()
-for t in [True]:
+"""
+for t in [False]:
     for m in all_models_for_attacks:
         run_cw_inspired_experiment(
             [m],
             [1.0],
             targeted = t)
-complete_remaining()
+        complete_remaining()
 """
