@@ -23,5 +23,4 @@ python python/run_cw_inspired.py \
   --checkpoint_paths adv_inception_resnet_v2.pth inception_v3_google-1a9a5a14.pth resnet34-333f7ec4.pth\
   --batch_size 16 \
   --n_iter 80 \
-  --lr=0.16 \
-  --target_nth_highest 1000
+  --lr=0.08

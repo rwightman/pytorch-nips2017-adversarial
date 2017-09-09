@@ -28,14 +28,9 @@ def main():
 
     cfgs = [config_from_string(s) for s in args.ensemble]
 
-    ensemble = create_ensemble(cfgs, args.ensemble_weights)
+    ensemble = create_ensemble(cfgs, args.ensemble_weights, checkpoint_paths=args.checkpoint_paths)
 
-    for cfg, model, checkpoint_path in zip(cfgs, ensemble.models, args.checkpoint_paths):
-        checkpoint = torch.load(checkpoint_path)
-        if isinstance(checkpoint, dict) and 'state_dict' in checkpoint:
-            model.get_core_model().load_state_dict(checkpoint['state_dict'])
-        else:
-            model.get_core_model().load_state_dict(checkpoint)
+    for model in ensemble.models:
         model.get_core_model().cuda()
         model.get_core_model().eval()
 
