@@ -37,6 +37,20 @@ class Blur(nn.Module):
         return blurred
 
 
+class RandomGaussianBlur(nn.Module):
+    def __init__(self, prob_blur, size, sigma):
+        super(RandomGaussianBlur, self).__init__()
+        self.prob_blur = prob_blur
+        self.gaussian_blur = GaussianBlur(size, sigma)
+
+    def forward(self, x):
+        do_blur = np.random.rand() < self.prob_blur
+        if do_blur:
+            return self.gaussian_blur(x)
+        else:
+            return x
+
+
 class GaussianBlur(nn.Module):
     def __init__(self, kernel_size, sigma, same=True):
         super(GaussianBlur, self).__init__()
