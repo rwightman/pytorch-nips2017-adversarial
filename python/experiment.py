@@ -28,7 +28,10 @@ def run_cw_inspired_experiment(
         no_augmentation_blurring=False,
         n_iter=100,
         lr=0.02,
-        target_nth_highest=6):
+        target_nth_highest=6,
+        gaus_blur_prob=0.5,
+        gaus_blur_size=5,
+        gaus_blur_sigma=3.0):
     experiment_name = 'cw_inspired_{}'.format(''.join(sorted(ensemble)))
     if no_augmentation:
         experiment_name = '{}_noaug'.format(experiment_name)
@@ -40,6 +43,14 @@ def run_cw_inspired_experiment(
         experiment_name = '{}_lr{}'.format(experiment_name, lr)
     if target_nth_highest != 6:
         experiment_name = '{}_trg{}'.format(experiment_name, target_nth_highest)
+
+    # Gaus Blur Experiment Variables
+    if gaus_blur_prob != 0.5:
+        experiment_name = '{}_gbp{}'.format(experiment_name, gaus_blur_prob)
+    if gaus_blur_size != 5:
+        experiment_name = '{}_gbsiz{}'.format(experiment_name, gaus_blur_size)
+    if gaus_blur_sigma != 3.0:
+        experiment_name = '{}_gbsig{}'.format(experiment_name, gaus_blur_sigma)
 
     output_dir = os.path.join(main_dir, 'targeted_attacks' if targeted else 'attacks', experiment_name)
     if not os.path.exists(output_dir):
@@ -70,6 +81,7 @@ def run_cw_inspired_experiment(
             python_cmd.extend(['--lr', str(lr)])
         if target_nth_highest != 6:
             python_cmd.extend(['--target_nth_highest', str(target_nth_highest)])
+        python_cmd.extend(['--gaus_blur_prob', str(gaus_blur_prob), '--gaus_blur_size', str(gaus_blur_size), '--gaus_blur_sigma', str(gaus_blur_sigma)])
         python_cmd.append('--ensemble')
         python_cmd.extend(ensemble)
         python_cmd.append('--ensemble_weights')
@@ -167,11 +179,8 @@ all_models = [
 models_exclude_for_attack = ['DPN107Extra']
 all_models_for_attacks = [m for m in all_models if m not in models_exclude_for_attack]
 
-
-
 run_cw_inspired_experiment(['adv_inception_resnet_v2', 'inception_v3'],[1.0, 1.0],targeted=True,lr=0.08,no_augmentation=True)
-run_cw_inspired_experiment(['adv_inception_resnet_v2', 'inception_v3', 'resnet34'],[1.0, 1.0, 0.885],targeted=False,lr=0.16,n_iter=80,target_nth_highest=1000)
-
+run_cw_inspired_experiment(['adv_inception_resnet_v2', 'inception_v3', 'resnet34'],[1.0, 1.0, 0.885],targeted=False,lr=0.16,n_iter=80)
 
 # Cleanup!
 complete_remaining()

@@ -29,12 +29,15 @@ parser.add_argument('--lr', type=float, default=0.02,
                     help='Learning rate for optimizer')
 parser.add_argument('--targeted', action='store_true', default=False,
                     help='Targeted attack')
-parser.add_argument('--no_augmentation', action='store_true', default=False,
-                    help='No foveation or blurring.')
-parser.add_argument('--no_augmentation_blurring', action='store_true', default=False,
-                    help='No blurring.')
 parser.add_argument('--batch_size', type=int, default=20, metavar='N',
                     help='Batch size (default: 20)')
+
+# Augmentation Args
+parser.add_argument('--no_augmentation', action='store_true', default=False,
+                    help='No foveation or blurring.')
+parser.add_argument('--gaus_blur_prob', type=float, default=0.5)
+parser.add_argument('--gaus_blur_size', type=int, default=5)
+parser.add_argument('--gaus_blur_sigma', type=float, default=3.0)
 
 
 def main():
@@ -51,17 +54,11 @@ def main():
     if args.no_augmentation:
         augmentation = lambda x: x
     else:
-        if args.no_augmentation_blurring:
-            augmentation = nn.Sequential(
-                processing.RandomMirror(0.5),
-                processing.RandomCrop(),  # augmentations.RandomCrop(269),
-            )
-        else:
-            augmentation = nn.Sequential(
-                processing.RandomMirror(0.5),
-                processing.RandomBlur(0.5, 0.5),
-                processing.RandomCrop(),  # augmentations.RandomCrop(269),
-            )
+        augmentation = nn.Sequential(
+            processing.RandomMirror(0.5),
+            processing.RandomGaussianBlur(args.gaus_blur_prob, args.gaus_blur_size, args.gaus_blur_sigma),
+            processing.RandomCrop()
+        )
 
     if args.targeted:
         dataset = Dataset(args.input_dir)
