@@ -17,7 +17,7 @@ img = Image.open(os.path.join(local_config['images_dir'], one_file)).convert('RG
 
 img.show()
 
-rbc = RandomBrightnessContrast(0.67,1.5,-0.2,0.2)
+rbc = RandomBrightnessContrast()
 
 img_tensor_batch = torch.stack([transforms.ToTensor()(img)])
 img_tensor_batch.size()

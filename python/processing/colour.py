@@ -7,7 +7,7 @@ import torch.autograd as autograd
 
 # From http://docs.opencv.org/2.4/doc/tutorials/core/basic_linear_transform/basic_linear_transform.html
 class RandomBrightnessContrast(nn.Module):
-    def __init__(self, gain_min, gain_max, bias_min, bias_max):
+    def __init__(self, gain_min=0.67, gain_max=1.5, bias_min=-0.2, bias_max=0.2):
         super(RandomBrightnessContrast, self).__init__()
         self.gain_min = gain_min
         self.gain_max = gain_max
@@ -15,7 +15,13 @@ class RandomBrightnessContrast(nn.Module):
         self.bias_max = bias_max
 
     def forward(self, x):
-        gain = np.random.uniform(self.gain_min, self.gain_max)
+        # Drawing from a unifor(gain_min, gain_max) would bias too much towards increase
+        # Instead we flip a coin and then draw a gain
+        increase_gain = np.random.rand() < 0.5
+        if increase_gain:
+            gain = np.random.uniform(1.0, self.gain_max)
+        else:
+            gain = np.random.uniform(self.gain_min, 1.0)
         bias = np.random.uniform(self.bias_max, self.bias_max)
         rescaled = x * gain + bias
         return torch.clamp(rescaled, 0.0, 1.0)
