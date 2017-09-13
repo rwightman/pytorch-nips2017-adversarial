@@ -1,3 +1,4 @@
+python/runs/
 *.pyc
 *.csv
 __pycache__
