@@ -2,7 +2,7 @@ import argparse
 import os
 import torch
 from models import create_ensemble
-from experiments.model_configs import config_from_string
+from models.model_configs import config_from_string
 import augmentations
 
 import os

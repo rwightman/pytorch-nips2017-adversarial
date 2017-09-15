@@ -4,7 +4,7 @@ path = os.path.abspath('../python/')
 sys.path.insert(0, path)
 
 import argparse
-from experiments.model_configs import config_from_string
+from models.model_configs import config_from_string
 from string import Template
 import yaml
 import shutil

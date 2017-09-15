@@ -1,6 +1,6 @@
 import argparse
 from models import create_ensemble
-from experiments.model_configs import config_from_string
+from models.model_configs import config_from_string
 from defenses.base import Base
 from dataset import Dataset
 import torch

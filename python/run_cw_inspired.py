@@ -7,7 +7,7 @@ from attacks.cw_inspired import CWInspired
 from dataset import Dataset
 
 from models import create_ensemble
-from experiments.model_configs import config_from_string
+from models.model_configs import config_from_string
 import processing
 
 parser = argparse.ArgumentParser(description='Defence')

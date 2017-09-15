@@ -1,9 +1,12 @@
 import subprocess
 import os
+import sys
 import yaml
-from experiments.model_configs import config_from_string
 
-with open('local_config.yaml', 'r') as f:
+sys.path.insert(0, os.path.abspath('../python'))
+from models.model_configs import config_from_string
+
+with open('../python/local_config.yaml', 'r') as f:
     local_config = yaml.load(f)
 main_dir = local_config['results_dir']
 if not os.path.exists(main_dir):
@@ -39,7 +42,7 @@ def run_universal_perturbation_experiment(npy_file, input_dir=os.path.abspath(IM
             'nvidia-docker', 'run',
             '-v', '{}:/input_images'.format(os.path.abspath(input_dir)),
             '-v', '{}:/output_images'.format(os.path.abspath(output_dir)),
-            '-v', '{}:/code'.format(os.path.abspath(os.getcwd())),
+            '-v', '{}:/code'.format(os.path.abspath(os.path.join(os.getcwd(),'../python/'))),
             '-w', '/code',
             'rwightman/pytorch-extra'
         ]
@@ -146,7 +149,7 @@ def run_cw_inspired_experiment(
             'nvidia-docker','run',
             '-v','{}:/input_images'.format(os.path.abspath(input_dir)),
             '-v','{}:/output_images'.format(os.path.abspath(output_dir)),
-            '-v','{}:/code'.format(os.path.abspath(os.getcwd())),
+            '-v','{}:/code'.format(os.path.abspath(os.path.join(os.getcwd(),'../python/'))),
             '-v', '{}:/checkpoints'.format(os.path.abspath(CHECKPOINT_DIR)), # Here is mounting that checkpoint folder
             '-w','/code',
             'rwightman/pytorch-extra'
@@ -185,7 +188,7 @@ def run_base_defense_experiment(ensemble, ensemble_weights, attack_name, targete
             'nvidia-docker','run',
             '-v','{}:/input_images'.format(os.path.abspath(input_dir)),
             '-v','{}:/output_data'.format(os.path.abspath(output_dir)),
-            '-v','{}:/code'.format(os.path.abspath(os.getcwd())),
+            '-v','{}:/code'.format(os.path.abspath(os.path.join(os.getcwd(),'../python/'))),
             '-v', '{}:/checkpoints'.format(os.path.abspath(CHECKPOINT_DIR)),
             '-w','/code',
             'rwightman/pytorch-extra'

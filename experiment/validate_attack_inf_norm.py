@@ -6,7 +6,7 @@ import numpy as np
 from PIL import Image
 import yaml
 
-with open('local_config.yaml', 'r') as f:
+with open('../python/local_config.yaml', 'r') as f:
     local_config = yaml.load(f)
 main_dir = local_config['results_dir']
 

@@ -1,6 +1,6 @@
 from dataset_imagenet import Dataset
 from models import create_ensemble
-from experiments.model_configs import config_from_string
+from models.model_configs import config_from_string
 import yaml
 import os
 import torch.utils.data as data
@@ -19,14 +19,15 @@ with open('local_config.yaml', 'r') as f:
 CHECKPOINT_DIR = local_config['checkpoints_dir']
 
 input_dir = '/media/stuff/ImageNet/train'
-ensemble = ['adv_inception_resnet_v2', 'inception_v3']
-ensemble_weights = [1.0, 1.0]
+ensemble = ['adv_inception_resnet_v2', 'inception_v3', 'resnet18']
+ensemble_weights = [1.0, 1.0, 0.5]
 checkpoint_paths = [
     os.path.join(CHECKPOINT_DIR, 'adv_inception_resnet_v2.pth'),
-    os.path.join(CHECKPOINT_DIR, 'inception_v3_google-1a9a5a14.pth')
+    os.path.join(CHECKPOINT_DIR, 'inception_v3_google-1a9a5a14.pth'),
+    os.path.join(CHECKPOINT_DIR, 'resnet18-5c106cde.pth')
 ]
 max_epsilon = 16.0
-batch_size = 6
+batch_size = 12
 img_size = 299
 
 dataset = Dataset(input_dir)
@@ -81,8 +82,6 @@ augmentation = nn.Sequential(
     processing.RandomCrop()
 )
 
-augmentation = lambda x: x
-
 perturbation_model = PerturbationNet(
     target_model,
     augmentation,
@@ -95,7 +94,7 @@ w_matrix = autograd.Variable(
     torch.zeros(1, 3, img_size, img_size).cuda(),
     requires_grad=True)
 perturbation_model.set_w_matrix(w_matrix)
-optimizer = optim.Adam([w_matrix], lr=0.02)
+optimizer = optim.Adam([w_matrix], lr=0.04)
 
 writer = SummaryWriter()
 
@@ -116,11 +115,11 @@ for batch_idx, (input, class_id) in enumerate(loader):
     epoch_batch_idx = epoch_batch_idx + 1
     input = input.cuda()
     input_var = autograd.Variable(input, volatile=False, requires_grad=True)
-    class_var = autograd.Variable(class_id).cuda()
+    class_var = autograd.Variable(torch.LongTensor(np.repeat(506,batch_size))).cuda()
 
     probs_perturbed_var = perturbation_model(input_var)
     optimizer.zero_grad()
-    loss = -nllloss(torch.log(probs_perturbed_var + 1e-8), target=class_var)
+    loss = nllloss(torch.log(probs_perturbed_var + 1e-8), target=class_var)
     losses.append(loss.data.cpu().numpy())
     loss.backward()
 
@@ -129,7 +128,7 @@ for batch_idx, (input, class_id) in enumerate(loader):
     optimizer.step()
 
 
-np.save('{}_noaug'.format(''.join(ensemble)), perturbation_model.w_matrix.data.cpu().numpy())
+np.save('{}_coil'.format(''.join(ensemble)), perturbation_model.w_matrix.data.cpu().numpy())
 
 
 #from PIL import Image
