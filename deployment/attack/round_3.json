@@ -1,0 +1,10 @@
+{
+    "name": "round_3",
+    "attack_type": "attack",
+    "ensemble": ["adv_inception_resnet_v2", "inception_v3", "resnet34"],
+    "ensemble_weights" : ["2.0", "2.0", "0.885"],
+    "run_cmd": "run_cw_inspired",
+    "base_runargs": ["--n_iter","31",
+                     "--lr", "0.24",
+                     "--target_nth_highest", "3"]
+}
