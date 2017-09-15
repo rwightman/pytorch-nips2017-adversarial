@@ -9,23 +9,28 @@ import torch
 import torch.autograd as autograd
 import torch.nn as nn
 import torch.optim as optim
+from torch.optim import lr_scheduler
 import torch.utils.data as data
 import torchvision.transforms as transforms
 
-TIME_LIMIT_PER_100 = 500  #FIXME make arg
+TIME_LIMIT_PER_100 = 450  #FIXME make arg
 
 
 class PerturbationNet(nn.Module):
-    def __init__(self, defense_ensemble, defense_augmentation, epsilon):
+    def __init__(self, defense_ensemble, defense_augmentation, epsilon, prob_dont_augment):
         super(PerturbationNet, self).__init__()
         self.defense_ensemble = defense_ensemble
         self.defense_augmentation = defense_augmentation
         self.epsilon = epsilon
+        self.prob_dont_augment = prob_dont_augment
         self.w_matrix = None
 
     def forward(self, x):
         perturbed = x + PerturbationNet.delta(self.w_matrix, x, self.epsilon)
-        augmented = self.defense_augmentation(perturbed)
+        if np.random.rand() < self.prob_dont_augment:
+            augmented = perturbed
+        else:
+            augmented = self.defense_augmentation(perturbed)
         output = self.defense_ensemble(augmented)
         return output
 
@@ -54,7 +59,9 @@ class CWInspired(object):
                  targeted=False,
                  target_nth_highest=6,
                  img_size=299,
-                 batch_size=20):
+                 batch_size=20,
+                 prob_dont_augment=0.0,
+                 initial_w_matrix=None):
         super(CWInspired, self).__init__()
         self.input_dir = input_dir
         self.output_dir = output_dir
@@ -68,6 +75,11 @@ class CWInspired(object):
         self.target_nth_highest = target_nth_highest
         self.img_size = img_size
         self.batch_size = batch_size
+        self.prob_dont_augment = prob_dont_augment
+        if initial_w_matrix is not None:
+            self.initial_w_matrix = np.load(initial_w_matrix)
+        else:
+            self.initial_w_matrix = None
 
     def run(self):
         attack_start = time.time()
@@ -89,7 +101,8 @@ class CWInspired(object):
         perturbation_model = PerturbationNet(
             self.target_ensemble,
             self.defense_augmentation,
-            eps
+            eps,
+            self.prob_dont_augment
         ).cuda()
 
         nllloss = torch.nn.NLLLoss().cuda()
@@ -106,9 +119,14 @@ class CWInspired(object):
             # In case of the final batch not being complete
             this_batch_size = input_var.size(0)
 
-            batch_w_matrix = autograd.Variable(
-                torch.zeros(this_batch_size, 3, self.img_size, self.img_size).cuda(),
-                requires_grad=True)
+            if self.initial_w_matrix is None:
+                batch_w_matrix = autograd.Variable(
+                    torch.zeros(this_batch_size, 3, self.img_size, self.img_size).cuda(),
+                    requires_grad=True)
+            else:
+                batch_w_matrix = autograd.Variable(
+                    torch.FloatTensor(np.stack([self.initial_w_matrix[0] for _ in range(this_batch_size)])).cuda(),
+                    requires_grad=True)
             perturbation_model.set_w_matrix(batch_w_matrix)
 
             # Predict class
@@ -126,10 +144,19 @@ class CWInspired(object):
 
             optimizer = optim.Adam([batch_w_matrix], lr=self.lr)
 
+            best_loss = torch.FloatTensor(np.repeat(9999.0,this_batch_size)).cuda()
+            best_w_matrix = autograd.Variable(torch.zeros(batch_w_matrix.size()).cuda())
+
             for i in range(self.n_iter):
                 probs_perturbed_var = perturbation_model(input_var)
                 optimizer.zero_grad()
                 loss = nllloss(torch.log(probs_perturbed_var + 1e-8), target=target_var)
+
+                better = loss.data < best_loss
+                for b in range(this_batch_size):
+                    if better[b]:
+                        best_w_matrix[b,:,:,:] = batch_w_matrix[b,:,:,:]
+
                 loss.backward()
                 optimizer.step()
 
@@ -152,7 +179,7 @@ class CWInspired(object):
                         break
                 iter_start = time.time()
 
-            final_change = PerturbationNet.delta(batch_w_matrix, input_var, eps)
+            final_change = PerturbationNet.delta(best_w_matrix, input_var, eps)
             final_change = torch.clamp(final_change, -eps, eps)  # Hygiene, math should mean this is already true
             final_image_tensor = input_var + final_change
             final_image_tensor = torch.clamp(
