@@ -28,7 +28,8 @@ class RandomBlur(nn.Module):
 
 
 class Blur(nn.Module):
-    def __init__(self, k=3):
+    def __init__(self, k):
+        k = k or 3
         super(Blur, self).__init__()
         self.median_pool = MedianPool2d(kernel_size=k, same=True).cuda()
 
@@ -52,12 +53,13 @@ class RandomGaussianBlur(nn.Module):
 
 
 class GaussianBlur(nn.Module):
-    def __init__(self, kernel_size, sigma, same=True):
+    def __init__(self, kernel_size, sigma=None, same=True):
         super(GaussianBlur, self).__init__()
-
+        kernel_size = kernel_size or 3
+        sigma = sigma or 0.5
         self.same = same
         if self.same:
-            self.padding = nn.ReplicationPad2d(1).cuda()
+            self.padding = nn.ReplicationPad2d((kernel_size - 1)//2).cuda()
 
         self.convolution = nn.Conv2d(3,3,kernel_size,stride=1,padding=0,groups=3,bias=False)
 

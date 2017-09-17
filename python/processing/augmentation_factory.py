@@ -1,4 +1,4 @@
-from .blur import Blur, RandomBlur
+from .blur import Blur, RandomBlur, GaussianBlur
 from .crop import CentreCrop, RandomCrop
 from .mirror import Mirror, RandomMirror
 from .resize import Resize
@@ -35,7 +35,9 @@ def build_fixed_augmentation(
         target_size,
         mirror=False,
         crop_ratio=1.0,
-        blur=0,
+        blur_type='',
+        blur_k=None,
+        blur_sigma=None,
         norm='torchvision'):
     seq = OrderedDict()
     if mirror:
@@ -44,8 +46,10 @@ def build_fixed_augmentation(
         seq['crop'] = CentreCrop(crop_ratio=crop_ratio)
     if target_size:
         seq['resize'] = Resize(target_size)
-    if blur:
-        seq['blur'] = Blur(k=blur)
+    if blur_type == 'g' or blur_type == 'gaussian':
+        seq['blur'] = GaussianBlur(kernel_size=blur_k, sigma=blur_sigma)
+    elif blur_type == 'm' or blur_type == 'median':
+        seq['blur'] = Blur(k=blur_k)
     if norm:
         seq['norm'] = get_normalizer(norm)
     return nn.Sequential(seq)
@@ -54,24 +58,46 @@ def build_fixed_augmentation(
 def build_2crop_augmentation(
         target_size,
         crop_ratio=1.0,
-        blur=0,
+        blur_type='m',
+        blur_k=0,
         norm='torchvision'):
     augs = []
     augs.append(build_fixed_augmentation(
-        target_size, mirror=False, crop_ratio=crop_ratio, blur=blur, norm=norm))
+        target_size, mirror=False, crop_ratio=crop_ratio, blur_type=blur_type, blur_k=blur_k, norm=norm))
     augs.append(build_fixed_augmentation(
-        target_size, mirror=True, crop_ratio=crop_ratio, blur=blur, norm=norm))
+        target_size, mirror=True, crop_ratio=crop_ratio, blur_type=blur_type, blur_k=blur_k, norm=norm))
     return augs
 
 
 def build_4crop_augmentation(target_size, norm='torchvision'):
     augs = []
     augs.append(build_fixed_augmentation(
-        target_size, mirror=False, crop_ratio=1.0, blur=2, norm=norm))
+        target_size, mirror=False, crop_ratio=1.0, blur_type='m', blur_k=2, norm=norm))
     augs.append(build_fixed_augmentation(
-        target_size, mirror=True, crop_ratio=1.0, blur=2, norm=norm))
+        target_size, mirror=True, crop_ratio=1.0, blur_type='m', blur_k=2, norm=norm))
     augs.append(build_fixed_augmentation(
-        target_size, mirror=False, crop_ratio=0.875, blur=0, norm=norm))
+        target_size, mirror=False, crop_ratio=0.875, norm=norm))
     augs.append(build_fixed_augmentation(
-        target_size, mirror=True, crop_ratio=0.9125, blur=0, norm=norm))
+        target_size, mirror=True, crop_ratio=0.9125, norm=norm))
+    return augs
+
+
+def build_8crop_augmentation(target_size, norm='torchvision'):
+    augs = []
+    augs.append(build_fixed_augmentation(
+        target_size, mirror=False, crop_ratio=1.0, blur_type='m', blur_k=3, norm=norm))
+    augs.append(build_fixed_augmentation(
+        target_size, mirror=True, crop_ratio=1.0,  blur_type='g', blur_k=3, norm=norm))
+    augs.append(build_fixed_augmentation(
+        target_size, mirror=False, crop_ratio=0.875,  blur_type='g', blur_k=3, norm=norm))
+    augs.append(build_fixed_augmentation(
+        target_size, mirror=True, crop_ratio=0.875,  blur_type='m', blur_k=2, norm=norm))
+    augs.append(build_fixed_augmentation(
+        target_size, mirror=False, crop_ratio=0.9167,  blur_type='m', blur_k=2, norm=norm))
+    augs.append(build_fixed_augmentation(
+        target_size, mirror=True, crop_ratio=0.9167,  blur_type='g', blur_k=3, norm=norm))
+    augs.append(build_fixed_augmentation(
+        target_size, mirror=False, crop_ratio=0.9583,  blur_type='g', blur_k=3, norm=norm))
+    augs.append(build_fixed_augmentation(
+        target_size, mirror=True, crop_ratio=0.9583,  blur_type='m', blur_k=3, norm=norm))
     return augs
