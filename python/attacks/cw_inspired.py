@@ -61,7 +61,8 @@ class CWInspired(object):
                  img_size=299,
                  batch_size=20,
                  prob_dont_augment=0.0,
-                 initial_w_matrix=None):
+                 initial_w_matrix=None,
+                 outputs_are_logprobs=False):
         super(CWInspired, self).__init__()
         self.input_dir = input_dir
         self.output_dir = output_dir
@@ -80,6 +81,7 @@ class CWInspired(object):
             self.initial_w_matrix = np.load(initial_w_matrix)
         else:
             self.initial_w_matrix = None
+        self.outputs_are_logprobs = outputs_are_logprobs
 
     def run(self):
         attack_start = time.time()
@@ -150,7 +152,10 @@ class CWInspired(object):
             for i in range(self.n_iter):
                 probs_perturbed_var = perturbation_model(input_var)
                 optimizer.zero_grad()
-                loss = nllloss(torch.log(probs_perturbed_var + 1e-8), target=target_var)
+                if not self.outputs_are_logprobs:
+                    loss = nllloss(torch.log(probs_perturbed_var + 1e-8), target=target_var)
+                else:
+                    loss = nllloss(probs_perturbed_var, target=target_var)
 
                 better = loss.data < best_loss
                 for b in range(this_batch_size):
