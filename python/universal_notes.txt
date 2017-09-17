@@ -1,0 +1,8 @@
+File: jigsaw.npy
+Old name: adv_inception_resnet_v2inception_v3resnet18dpn68densenet121_jigsaw2.npy
+
+File: jigsaw2.npy
+Old name: universal_adv_inception_resnet_v2inception_v3resnet101dpn68densenet161_jigsaw_eps8_iter16600.npy
+
+File: monitor.npy
+Old name: universal_adv_inception_resnet_v2inception_v3resnet18_monitor.npy

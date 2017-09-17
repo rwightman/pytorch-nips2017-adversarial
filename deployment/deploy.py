@@ -18,9 +18,10 @@ DEPLOYMENT_DIR = local_config['deployment_dir']
 parser = argparse.ArgumentParser(description='No description')
 parser.add_argument('--name', type=str, help='Name of json file')
 parser.add_argument('--type', type=str, help='targeted_attack, attack, or defense')
+parser.add_argument('--no_extra_args', action='store_true', default=False, help='Use this for universal.')
 
 
-def deploy_attack(cfg):
+def deploy_attack(cfg, no_extra_args=False):
     run_template_path = os.path.join('../python/attacks','run_attack.sh.template')
     metadata_template_path = os.path.join('../python/attacks','metadata.json.template')
 
@@ -31,15 +32,17 @@ def deploy_attack(cfg):
     run_cmd = cfg['run_cmd']
     runargs = cfg['base_runargs']
 
+    checkpoint_paths = [config_from_string(m)['checkpoint_file'] for m in ensemble]
+
     deployment_path = os.path.join(DEPLOYMENT_DIR, 'targeted_attacks' if attack_type == 'targeted_attack' else 'attacks', name)
 
-    runargs.append('--ensemble')
-    runargs.extend(ensemble)
-    runargs.append('--ensemble_weights')
-    runargs.extend(ensemble_weights)
-    runargs.append('--checkpoint_paths')
-    checkpoint_paths = [config_from_string(m)['checkpoint_file'] for m in ensemble]
-    runargs.extend(checkpoint_paths)
+    if not no_extra_args:
+        runargs.append('--ensemble')
+        runargs.extend(ensemble)
+        runargs.append('--ensemble_weights')
+        runargs.extend(ensemble_weights)
+        runargs.append('--checkpoint_paths')
+        runargs.extend(checkpoint_paths)
 
     if not os.path.exists(deployment_path):
         os.makedirs(deployment_path)
@@ -73,7 +76,7 @@ def main():
         json_data = json.load(json_file)
 
     if args.type in ['attack', 'targeted_attack']:
-        deploy_attack(json_data)
+        deploy_attack(json_data, no_extra_args=args.no_extra_args)
     elif args.type == 'defense':
         raise NotImplementedError()
     else:

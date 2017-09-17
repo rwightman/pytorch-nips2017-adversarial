@@ -28,10 +28,12 @@ class Ensemble(nn.Module):
             for idx in range(len(outputs) - 1):
                 o = torch.mul(o, torch.pow(outputs[idx + 1], self.ensembling_weights[idx + 1]) + 1e-6)
             mean_probs = torch.pow(o, 1.0 / sum(self.ensembling_weights))
-        else:
+        elif self.mean == 'arithmetic':
             o = self.ensembling_weights[0] * outputs[0]
             for idx in range(len(outputs)-1):
                 o = o + self.ensembling_weights[idx + 1]*outputs[idx+1]
             mean_probs = o / sum(self.ensembling_weights)
+        else:
+            raise ValueError('Invalid mean method.')
 
         return mean_probs

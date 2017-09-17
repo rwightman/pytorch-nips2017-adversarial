@@ -53,6 +53,57 @@ def run_universal_perturbation_experiment(npy_file, input_dir=os.path.abspath(IM
 
         validate(experiment_name, False)
 
+def run_selective_universal_experiment(
+        npy_files,
+        ensemble,
+        ensemble_weights,
+        input_dir=os.path.abspath(IMAGES_DIR),
+        max_epsilon=16):
+    experiment_name = 'selective_{}_{}'.format((''.join(npy_files)).replace('.npy',''),''.join(ensemble))
+
+    output_dir = os.path.join(main_dir, 'attacks', experiment_name)
+    if not os.path.exists(output_dir):
+        print('Running experiment {}: attack {}.'.format(experiment_name, 'selective_universal'))
+
+        os.makedirs(output_dir)
+
+        python_cmd = [
+            'python',
+            'run_selective_universal.py',
+            '--input_dir=/input_images',
+            '--output_dir=/output_images',
+            '--max_epsilon={}'.format(max_epsilon)
+        ]
+
+        python_cmd.append('--npy_files')
+        python_cmd.extend(npy_files)
+
+        python_cmd.append('--ensemble')
+        python_cmd.extend(ensemble)
+        python_cmd.append('--ensemble_weights')
+        python_cmd.extend([str(e) for e in ensemble_weights])
+
+        checkpoint_paths = [config_from_string(m)['checkpoint_file'] for m in ensemble]
+        python_cmd.append('--checkpoint_paths')
+        python_cmd.extend([os.path.join('/checkpoints/',cp) for cp in checkpoint_paths]) # We're going to mount the checkpoint folder below
+
+        cmd = [
+            'nvidia-docker', 'run',
+            '-v', '{}:/input_images'.format(os.path.abspath(input_dir)),
+            '-v', '{}:/output_images'.format(os.path.abspath(output_dir)),
+            '-v', '{}:/code'.format(os.path.abspath(os.path.join(os.getcwd(),'../python/'))),
+            '-v', '{}:/checkpoints'.format(os.path.abspath(CHECKPOINT_DIR)),  # Here is mounting that checkpoint folder
+            '-w', '/code',
+            'rwightman/pytorch-extra'
+        ]
+
+        cmd.extend(python_cmd)
+
+        subprocess.call(cmd)
+
+        validate(experiment_name, False)
+
+
 def run_cw_inspired_experiment(
         ensemble,
         ensemble_weights,
@@ -70,7 +121,9 @@ def run_cw_inspired_experiment(
         brightness_contrast=False,
         saturation=False,
         prob_dont_augment=0.0,
-        initial_w_matrix=None):
+        initial_w_matrix=None,
+        mean='geometric',
+        output_fn='softmax'):
     experiment_name = 'cw_inspired_{}'.format(''.join(sorted(ensemble)))
     if no_augmentation:
         experiment_name = '{}_noaug'.format(experiment_name)
@@ -100,6 +153,11 @@ def run_cw_inspired_experiment(
 
     if initial_w_matrix is not None:
         experiment_name = '{}_w{}'.format(experiment_name, initial_w_matrix)
+
+    if mean != 'geometric':
+        experiment_name = '{}_{}'.format(experiment_name, mean)
+    if output_fn != 'softmax':
+        experiment_name = '{}_{}'.format(experiment_name, output_fn)
 
     output_dir = os.path.join(main_dir, 'targeted_attacks' if targeted else 'attacks', experiment_name)
     if not os.path.exists(output_dir):
@@ -144,6 +202,10 @@ def run_cw_inspired_experiment(
         python_cmd.append('--ensemble_weights')
         python_cmd.extend([str(e) for e in ensemble_weights])
         python_cmd.extend(['--batch_size','8'])
+        if mean!='geometric':
+            python_cmd.append('--arithmetic')
+        if output_fn!='softmax':
+            python_cmd.append('--log_softmax')
 
         cmd = [
             'nvidia-docker','run',
@@ -213,6 +275,8 @@ def complete_remaining():
 
 all_models = [
     'inception_v3',
+    'inception_v3_tf',
+    'adv_inception_v3',
     'resnet18',
     'resnet34',
     'resnet50',
@@ -236,53 +300,11 @@ all_models = [
 models_exclude_for_attack = ['DPN107Extra']
 all_models_for_attacks = [m for m in all_models if m not in models_exclude_for_attack]
 
+run_selective_universal_experiment(['jigsaw.npy', 'jigsaw2.npy', 'monitor.npy'],['inception_v3_tf'],[1.0])
 
-run_universal_perturbation_experiment('ensemble3.npy')
-run_universal_perturbation_experiment('adv_inception_resnet_v2inception_v3.npy')
-run_universal_perturbation_experiment('adv_inception_resnet_v2inception_v3resnet18.npy')
-run_universal_perturbation_experiment('adv_inception_resnet_v2inception_v3resnet18_monitor.npy')
+run_cw_inspired_experiment(['adv_inception_resnet_v2','inception_v3_tf'],[1.0, 1.0],targeted=True,no_augmentation=True,mean='geometric',output_fn='softmax',lr=0.08,n_iter=37)
+run_cw_inspired_experiment(['adv_inception_resnet_v2','inception_v3_tf'],[1.0, 1.0],targeted=True,no_augmentation=True,mean='arithmetic',output_fn='log_softmax',lr=0.08,n_iter=37)
 
-"""
-run_cw_inspired_experiment(['adv_inception_resnet_v2', 'inception_v3'],[1.0, 1.0],targeted=True,lr=0.08,no_augmentation=True,n_iter=35)
-run_cw_inspired_experiment(['adv_inception_resnet_v2', 'inception_v3'],[1.0, 1.0],targeted=True,lr=0.16,no_augmentation=True,n_iter=35)
-run_cw_inspired_experiment(['adv_inception_resnet_v2', 'inception_v3'],[1.0, 1.0],targeted=True,lr=0.24,no_augmentation=True,n_iter=35)
-run_cw_inspired_experiment(['adv_inception_resnet_v2', 'inception_v3'],[1.0, 1.0],targeted=True,lr=0.32,no_augmentation=True,n_iter=35)
-run_cw_inspired_experiment(['adv_inception_resnet_v2', 'inception_v3'],[1.0, 1.0],targeted=True,lr=0.40,no_augmentation=True,n_iter=35)
-run_cw_inspired_experiment(['adv_inception_resnet_v2', 'inception_v3'],[1.0, 1.0],targeted=True,lr=0.64,no_augmentation=True,n_iter=35)
-run_cw_inspired_experiment(['adv_inception_resnet_v2', 'inception_v3'],[1.0, 1.0],targeted=True,lr=0.96,no_augmentation=True,n_iter=35)
-"""
-
-"""
-run_cw_inspired_experiment(['adv_inception_resnet_v2', 'inception_v3', 'resnet34'],[1.0, 1.0, 0.885],targeted=False,lr=0.08,n_iter=28)
-run_cw_inspired_experiment(['adv_inception_resnet_v2', 'inception_v3', 'resnet34'],[1.0, 1.0, 0.885],targeted=False,lr=0.16,n_iter=28)
-run_cw_inspired_experiment(['adv_inception_resnet_v2', 'inception_v3', 'resnet34'],[1.0, 1.0, 0.885],targeted=False,lr=0.24,n_iter=28)
-run_cw_inspired_experiment(['adv_inception_resnet_v2', 'inception_v3', 'resnet34'],[1.0, 1.0, 0.885],targeted=False,lr=0.32,n_iter=28)
-
-run_cw_inspired_experiment(['adv_inception_resnet_v2', 'inception_v3', 'resnet34'],[2.0, 2.0, 0.885],targeted=False,lr=0.08,n_iter=28)
-run_cw_inspired_experiment(['adv_inception_resnet_v2', 'inception_v3', 'resnet34'],[2.0, 2.0, 0.885],targeted=False,lr=0.16,n_iter=28)
-run_cw_inspired_experiment(['adv_inception_resnet_v2', 'inception_v3', 'resnet34'],[2.0, 2.0, 0.885],targeted=False,lr=0.24,n_iter=28)
-run_cw_inspired_experiment(['adv_inception_resnet_v2', 'inception_v3', 'resnet34'],[2.0, 2.0, 0.885],targeted=False,lr=0.32,n_iter=28)
-
-for n in [2,4,6,8,10,100]:
-    run_cw_inspired_experiment(['adv_inception_resnet_v2', 'inception_v3', 'resnet34'],[2.0, 2.0, 0.885],targeted=False,lr=0.24,n_iter=28,target_nth_highest=n)
-
-run_cw_inspired_experiment(['adv_inception_resnet_v2', 'inception_v3'],[1.0, 1.0],targeted=True,lr=0.22,no_augmentation=True,n_iter=35)
-run_cw_inspired_experiment(['adv_inception_resnet_v2', 'inception_v3', 'inception_v3'],[1.0, 1.0, 1.0],targeted=True,lr=0.22,no_augmentation=True,n_iter=35)
-
-
-run_cw_inspired_experiment(['adv_inception_resnet_v2', 'inception_v3', 'resnet34'],[2.0, 2.0, 0.885],targeted=False,lr=0.24,n_iter=28,target_nth_highest=3)
-run_cw_inspired_experiment(['adv_inception_resnet_v2', 'inception_v3', 'resnet18'],[2.0, 2.0, 0.885],targeted=False,lr=0.24,n_iter=28,target_nth_highest=3)
-run_cw_inspired_experiment(['adv_inception_resnet_v2', 'inception_v3', 'dpn68'],[2.0, 2.0, 1.0],targeted=False,lr=0.24,n_iter=28,target_nth_highest=3)
-run_cw_inspired_experiment(['adv_inception_resnet_v2', 'inception_v3', 'densenet121'],[2.0, 2.0, 1.0],targeted=False,lr=0.24,n_iter=28,target_nth_highest=3)
-run_cw_inspired_experiment(['adv_inception_resnet_v2', 'inception_v3', 'inception_v3', 'resnet34'],[2.0, 2.0, 2.0, 0.885],targeted=False,lr=0.24,n_iter=28,target_nth_highest=3)
-run_cw_inspired_experiment(['adv_inception_resnet_v2', 'inception_v3', 'resnet50'],[2.0, 2.0, 1.0],targeted=False,lr=0.24,n_iter=28,target_nth_highest=3)
-run_cw_inspired_experiment(['adv_inception_resnet_v2', 'inception_v3', 'densenet161'],[2.0, 2.0, 1.0],targeted=False,lr=0.24,n_iter=28,target_nth_highest=3)
-run_cw_inspired_experiment(['adv_inception_resnet_v2', 'inception_v3', 'resnet34'],[3.0, 3.0, 0.885],targeted=False,lr=0.24,n_iter=28,target_nth_highest=3)
-run_cw_inspired_experiment(['adv_inception_resnet_v2', 'inception_v3', 'inception_v3', 'resnet34'],[2.0, 2.0, 2.0, 0.885],targeted=False,lr=0.24,n_iter=28,target_nth_highest=3)
-
-
-run_cw_inspired_experiment(['adv_inception_resnet_v2', 'inception_v3', 'inception_v3', 'resnet34'],[2.0, 2.0, 2.0, 0.885],targeted=False,lr=0.24,n_iter=20,target_nth_highest=3)
-"""
 
 # Cleanup!
 complete_remaining()
