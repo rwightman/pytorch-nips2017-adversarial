@@ -11,6 +11,12 @@ def normalizer_from_model(model_name):
 
 def config_from_string(string):
     string_to_config_dict = {
+        'inception_v3_tf': {
+            'model_name': 'inception_v3', 'num_classes': 1001, 'input_size': 299,
+            'checkpoint_file': 'inception_v3_rw.pth',  'drop_first_class': True, 'kwargs': {'aux_logits': False}},
+        'adv_inception_v3': {
+            'model_name': 'inception_v3', 'num_classes': 1001, 'input_size': 299,
+            'checkpoint_file': 'adv_inception_v3_rw.pth', 'drop_first_class': True, 'kwargs': {'aux_logits': False}},
         'inception_v3': {
             'model_name': 'inception_v3', 'num_classes': 1000, 'input_size': 299,
             'checkpoint_file': 'inception_v3_google-1a9a5a14.pth', 'drop_first_class': False},
