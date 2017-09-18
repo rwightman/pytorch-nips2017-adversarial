@@ -78,6 +78,6 @@ def config_from_string(string):
 
     for _, config_dict in string_to_config_dict.items():
         config_dict['normalizer'] = normalizer_from_model(config_dict['model_name'])
-        config_dict['output_fn'] = 'softmax'
+        config_dict['output_fn'] = 'log_softmax'
 
     return string_to_config_dict[string]

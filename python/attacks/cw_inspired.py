@@ -13,8 +13,6 @@ from torch.optim import lr_scheduler
 import torch.utils.data as data
 import torchvision.transforms as transforms
 
-TIME_LIMIT_PER_100 = 450  #FIXME make arg
-
 
 class PerturbationNet(nn.Module):
     def __init__(self, defense_ensemble, defense_augmentation, epsilon, prob_dont_augment):
@@ -62,7 +60,7 @@ class CWInspired(object):
                  batch_size=20,
                  prob_dont_augment=0.0,
                  initial_w_matrix=None,
-                 outputs_are_logprobs=False):
+                 time_limit_per_100=450):
         super(CWInspired, self).__init__()
         self.input_dir = input_dir
         self.output_dir = output_dir
@@ -81,7 +79,7 @@ class CWInspired(object):
             self.initial_w_matrix = np.load(initial_w_matrix)
         else:
             self.initial_w_matrix = None
-        self.outputs_are_logprobs = outputs_are_logprobs
+        self.time_limit_per_100 = time_limit_per_100
 
     def run(self):
         attack_start = time.time()
@@ -109,7 +107,7 @@ class CWInspired(object):
 
         nllloss = torch.nn.NLLLoss().cuda()
 
-        time_limit = TIME_LIMIT_PER_100 * ((len(self.dataset) - 1) // 100 + 1)
+        time_limit = self.time_limit_per_100 * ((len(self.dataset) - 1) // 100 + 1)
         time_limit_per_batch = time_limit / len(loader)
         iter_time = AverageMeter()
         for batch_idx, (input, target) in enumerate(loader):
@@ -133,13 +131,12 @@ class CWInspired(object):
 
             # Predict class
             if not self.targeted:
-                probs_perturbed_var = perturbation_model(input_var)
-                probs_perturbed = probs_perturbed_var.data.cpu().numpy()
+                log_probs_var = perturbation_model(input_var)
+                log_probs = log_probs_var.data.cpu().numpy()
 
-                # target = 6th why not since top 5% accuracy is so good
                 target = torch.LongTensor(
-                    np.argsort(probs_perturbed, axis=1)[:, -self.target_nth_highest])
-                del probs_perturbed_var
+                    np.argsort(log_probs, axis=1)[:, -self.target_nth_highest])
+                del log_probs_var
 
             # target came either from the loader or above
             target_var = autograd.Variable(target).cuda()
@@ -150,12 +147,9 @@ class CWInspired(object):
             best_w_matrix = autograd.Variable(torch.zeros(batch_w_matrix.size()).cuda())
 
             for i in range(self.n_iter):
-                probs_perturbed_var = perturbation_model(input_var)
+                log_probs_perturbed_var = perturbation_model(input_var)
                 optimizer.zero_grad()
-                if not self.outputs_are_logprobs:
-                    loss = nllloss(torch.log(probs_perturbed_var + 1e-8), target=target_var)
-                else:
-                    loss = nllloss(probs_perturbed_var, target=target_var)
+                loss = nllloss(log_probs_perturbed_var, target=target_var)
 
                 better = loss.data < best_loss
                 for b in range(this_batch_size):
