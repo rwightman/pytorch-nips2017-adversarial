@@ -19,20 +19,18 @@ def parse_args():
                         help='Targeted attack')
     return parser.parse_args()
 
-def main():
-    args = parse_args()
-
-    print('Validating images for {}attack {}...'.format('targeted ' if args.targeted else '',args.attack_name))
+def validate(attack_name, targeted):
+    print('Validating images for {}attack {}...'.format('targeted ' if targeted else '', attack_name))
 
     all_images = os.listdir(local_config['images_dir'])
     for im in all_images:
         if im.endswith('.png'):
-            with open(os.path.join(local_config['images_dir'],im), 'rb') as f:
+            with open(os.path.join(local_config['images_dir'], im), 'rb') as f:
                 original_image = Image.open(f).convert('RGB')
                 original_image = np.array(original_image).astype(np.float)
             with open(os.path.join(main_dir,
-                                   'targeted_attacks' if args.targeted else 'attacks',
-                                   args.attack_name,
+                                   'targeted_attacks' if targeted else 'attacks',
+                                   attack_name,
                                    im), 'rb') as f:
                 perturbed_image = Image.open(f).convert('RGB')
                 perturbed_image = np.array(perturbed_image).astype(np.float)
@@ -44,6 +42,13 @@ def main():
                 print('Invalid abs dif of {} for image{}'.format(max_abs_dif, im))
 
     print('Done!')
+
+
+def main():
+    args = parse_args()
+
+    validate(args.attack_name, args.targeted)
+
 
 if __name__ == '__main__':
   main()

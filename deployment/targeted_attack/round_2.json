@@ -4,8 +4,8 @@
     "ensemble": ["adv_inception_resnet_v2", "inception_v3"],
     "ensemble_weights" : ["1.0", "1.0"],
     "run_cmd": "run_cw_inspired",
-    "base_runargs": ["--targeted",
-                     "--no_augmentation",
-                     "--n_iter","100",
-                     "--lr", "0.08"]
+    "runargs": ["--targeted",
+                "--no_augmentation",
+                "--n_iter","100",
+                "--lr", "0.08"]
 }

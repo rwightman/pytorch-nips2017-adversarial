@@ -9,10 +9,10 @@
 #   OUTPUT_FILE - file to store classification labels
 #
 
-INPUT_DIR=$1
-OUTPUT_FILE=$2
+INPUT_DIR=$$1
+OUTPUT_FILE=$$2
 
-python defense.py \
-  --input_dir="${INPUT_DIR}" \
-  --output_file="${OUTPUT_FILE}" \
-  --checkpoint_path=inception_v3_google-1a9a5a14.pth
+python python/${run_cmd}.py \
+  --input_dir="$${INPUT_DIR}" \
+  --output_file="$${OUTPUT_FILE}" \
+  $run_args
