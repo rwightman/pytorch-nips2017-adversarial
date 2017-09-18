@@ -6,3 +6,11 @@ Old name: universal_adv_inception_resnet_v2inception_v3resnet101dpn68densenet161
 
 File: monitor.npy
 Old name: universal_adv_inception_resnet_v2inception_v3resnet18_monitor.npy
+
+
+brain_coral.npy
+adv_inception_resnet_v2inception_v3_tfadv_inception_v3resnet101dpn68densenet161alexnet_spiderweb_eps8_iter16500.npy
+
+
+crt.npy
+adv_inception_resnet_v2inception_v3_tfadv_inception_v3resnet101dpn68densenet161alexnet_782_eps16.0_iter36500

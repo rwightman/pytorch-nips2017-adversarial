@@ -1,6 +1,6 @@
 {
-  "type": "$attack_type",
+  "type": "defense",
   "container": "rwightman/pytorch-extra",
   "container_gpu": "rwightman/pytorch-extra",
-  "entry_point": "run_attack.sh"
+  "entry_point": "run_defense.sh"
 }

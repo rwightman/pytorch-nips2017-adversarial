@@ -8,14 +8,13 @@ import os
 
 
 class Base(object):
-    def __init__(self, input_dir, output_file, ensemble, dataset, img_size=299, batch_size=8, gpu=True):
+    def __init__(self, input_dir, output_file, ensemble, dataset, img_size=299, batch_size=8):
         self.input_dir = input_dir
         self.output_file = output_file
         self.ensemble = ensemble
         self.dataset = dataset
         self.img_size = img_size
         self.batch_size = batch_size
-        self.gpu = gpu
 
     def write_output_file(self, outputs):
         with open(self.output_file, 'w') as out_file:
@@ -37,11 +36,10 @@ class Base(object):
 
         outputs = []
         for batch_idx, (input, _) in enumerate(loader):
-            if self.gpu:
-                input = input.cuda()
+            input = input.cuda()
             input_var = autograd.Variable(input, volatile=True)
-            labels = self.ensemble(input_var)
-            labels = labels.max(1)[1]
+            log_probs_var = self.ensemble(input_var)
+            labels = log_probs_var.max(1)[1]
             outputs.append(labels.data.cpu().numpy())
         outputs = np.concatenate(outputs, axis=0)
 

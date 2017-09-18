@@ -1,11 +1,14 @@
 {
     "name": "round_3_targeted",
     "attack_type": "targeted_attack",
-    "ensemble": ["adv_inception_resnet_v2", "inception_v3"],
-    "ensemble_weights" : ["1.0", "1.0"],
+    "ensemble": ["adv_inception_resnet_v2", "inception_v3", "adv_inception_v3"],
+    "ensemble_weights" : ["4.0", "1.0", "1.0"],
     "run_cmd": "run_cw_inspired",
-    "base_runargs": ["--targeted",
-                     "--no_augmentation",
-                     "--n_iter","35",
-                     "--lr", "0.22"]
+    "runargs": ["--targeted",
+                "--no_augmentation",
+                "--n_iter","35",
+                "--lr", "0.22"]
 }
+
+
+,targeted=True,no_augmentation=True,lr=0.22,n_iter=35)

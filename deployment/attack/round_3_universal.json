@@ -1,8 +1,6 @@
 {
     "name": "round_3_universal",
     "attack_type": "attack",
-    "ensemble": [],
-    "ensemble_weights" : [],
     "run_cmd": "run_universal_perturbation",
-    "base_runargs": ["--npy_file", "jigsaw.npy"]
+    "npy_file": "jigsaw.npy"
 }

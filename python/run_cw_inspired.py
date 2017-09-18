@@ -32,8 +32,6 @@ parser.add_argument('--targeted', action='store_true', default=False,
 parser.add_argument('--batch_size', type=int, default=20, metavar='N',
                     help='Batch size (default: 20)')
 parser.add_argument('--initial_w_matrix', type=str, default=None)
-parser.add_argument('--log_softmax', action='store_true', default=False)
-parser.add_argument('--arithmetic', action='store_true', default=False)
 
 # Augmentation Args
 parser.add_argument('--no_augmentation', action='store_true', default=False,
@@ -51,13 +49,7 @@ def main():
 
     cfgs = [config_from_string(s) for s in args.ensemble]
 
-    ensemble_method = 'arithmetic' if args.arithmetic else 'geometric'
-    if args.log_softmax:
-        target_model = create_ensemble(cfgs, args.ensemble_weights, args.checkpoint_paths, output_fn_override='log_softmax', mean_method=ensemble_method)
-        outputs_are_logprobs = True
-    else:
-        target_model = create_ensemble(cfgs, args.ensemble_weights, args.checkpoint_paths, mean_method=ensemble_method)
-        outputs_are_logprobs = False
+    target_model = create_ensemble(cfgs, args.ensemble_weights, args.checkpoint_paths)
 
     for transformed_model in target_model.models:
         transformed_model.model.cuda()
@@ -97,8 +89,7 @@ def main():
         target_nth_highest=args.target_nth_highest,
         batch_size=args.batch_size,
         prob_dont_augment=0.0,
-        initial_w_matrix=args.initial_w_matrix,
-        outputs_are_logprobs=outputs_are_logprobs
+        initial_w_matrix=args.initial_w_matrix
     )
 
     attack.run()
