@@ -19,8 +19,6 @@ parser.add_argument('--img-size', type=int, default=299, metavar='N',
                     help='Image patch size (default: 299)')
 parser.add_argument('--batch-size', type=int, default=32, metavar='N',
                     help='Batch size (default: 32)')
-parser.add_argument('--no-gpu', action='store_true', default=False,
-                    help='disables GPU training')
 
 
 def main():
@@ -47,8 +45,7 @@ def main():
         ensemble,
         dataset,
         img_size=args.img_size,
-        batch_size=args.batch_size,
-        gpu=not args.no_gpu
+        batch_size=args.batch_size
     )
 
     defense.run()
