@@ -6,7 +6,7 @@ class Ensemble(nn.Module):
     def __init__(self, models, ensembling_weights=None, mean_method='arithmetic'):
         super(Ensemble, self).__init__()
 
-        self.models = models
+        self.models = nn.ModuleList(models)
 
         if ensembling_weights is None:
             self.ensembling_weights = [1.0 for _ in models]

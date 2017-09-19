@@ -49,11 +49,8 @@ def main():
 
     cfgs = [config_from_string(s) for s in args.ensemble]
 
-    target_model = create_ensemble(cfgs, args.ensemble_weights, args.checkpoint_paths)
-
-    for transformed_model in target_model.models:
-        transformed_model.model.cuda()
-        transformed_model.model.eval()
+    target_model = create_ensemble(cfgs, args.ensemble_weights, args.checkpoint_paths).cuda()
+    target_model.eval()
 
     if args.no_augmentation:
         augmentation = lambda x: x

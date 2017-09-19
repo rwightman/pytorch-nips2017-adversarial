@@ -48,11 +48,8 @@ dataset = Dataset(input_dir)
 
 img_size = 299
 cfgs = [config_from_string(s) for s in ensemble]
-target_model = create_ensemble(cfgs, ensemble_weights, checkpoint_paths)
-
-for transformed_model in target_model.models:
-    transformed_model.model.cuda()
-    transformed_model.model.eval()
+target_model = create_ensemble(cfgs, ensemble_weights, checkpoint_paths).cuda()
+target_model.eval()
 
 eps = max_epsilon / 255.0
 

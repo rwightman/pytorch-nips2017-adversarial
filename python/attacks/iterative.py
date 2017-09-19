@@ -11,11 +11,12 @@ class AttackIterative:
 
     def __init__(
             self,
-            targeted=True, max_epsilon=16, norm=float('inf'),
-            step_alpha=None, num_steps=None, cuda=True, debug=False):
+            targeted=True, random_start=False, max_epsilon=16, norm=float('inf'),
+            step_alpha=None, num_steps=None, debug=False):
 
         self.targeted = targeted
-        self.eps = 2.0 * max_epsilon / 255.0
+        self.random_start = random_start
+        self.eps = max_epsilon / 255.0
         self.num_steps = num_steps or 10
         self.norm = norm
         if not step_alpha:
@@ -29,9 +30,7 @@ class AttackIterative:
                     self.step_alpha = 1.0
         else:
             self.step_alpha = step_alpha
-        self.loss_fn = torch.nn.CrossEntropyLoss()
-        if cuda:
-            self.loss_fn = self.loss_fn.cuda()
+        self.loss_fn = torch.nn.NLLLoss().cuda()
         self.debug = debug
 
     def run(self, model, input, target, batch_idx=0):
@@ -44,9 +43,17 @@ class AttackIterative:
         while step < self.num_steps:
             zero_gradients(input_var)
             output = model(input_var)
-            if not self.targeted and not step:
-                # for non-targeted, we'll move away from most likely
-                target_var.data = output.data.max(1)[1]
+
+            step_adv = input_var.data.clone()
+            if not step:
+                if not self.targeted:
+                    # for non-targeted, we'll move away from most likely
+                    target_var.data = output.data.max(1)[1]
+                if self.random_start:
+                    step_adv += torch.normal(means=torch.zeros(step_adv.size()).cuda(), std=0.02)
+                    #step_adv += step_alpha/6 * torch.sign(
+                    #    torch.normal(means=torch.zeros(step_adv.size()).cuda(), std=1.0))
+
             loss = self.loss_fn(output, target_var)
             loss.backward()
 
@@ -61,9 +68,9 @@ class AttackIterative:
 
             # perturb current input image by normalized and scaled gradient
             if self.targeted:
-                step_adv = input_var.data - normed_grad
+                step_adv -= normed_grad
             else:
-                step_adv = input_var.data + normed_grad
+                step_adv += normed_grad
 
             # calculate total adversarial perturbation from original image and clip to epsilon constraints
             total_adv = step_adv - input
@@ -83,7 +90,7 @@ class AttackIterative:
 
             # apply total adversarial perturbation to original image and clip to valid pixel range
             input_adv = input + total_adv
-            input_adv = torch.clamp(input_adv, -1.0, 1.0)
+            input_adv = torch.clamp(input_adv, 0., 1.0)
             input_var.data = input_adv
             step += 1
 

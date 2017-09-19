@@ -24,7 +24,7 @@ class AttackCarliniWagnerL2:
         self.repeat = self.binary_search_steps >= 10
         self.max_steps = max_steps or 1500
         self.abort_early = True
-        self.clip_min = -1.
+        self.clip_min = 0.
         self.clip_max = 1.
         self.cuda = cuda
         self.clamp_fn = ''  # set to something else perform a simple clamp instead of tanh
@@ -102,7 +102,7 @@ class AttackCarliniWagnerL2:
 
         # setup input (image) variable, clamp/scale as necessary
         if self.clamp_fn == 'tanh':
-            # convert to tanh-space, input already int -1 to 1 range, does it make sense to do
+            # convert to tanh-space, input already in clip_min to clip_max range, does it make sense to do
             # this as per the reference implementation or can we skip the arctanh?
             input_var = autograd.Variable(torch_arctanh(input), requires_grad=False)
             input_orig = tanh_rescale(input_var, self.clip_min, self.clip_max)
