@@ -9,10 +9,10 @@ if not os.path.exists(main_dir):
     os.makedirs(main_dir)
 
 sys.path.insert(0, os.path.abspath('../python'))
-from experiment.cw_inspired_experiment import CWInspiredExperiment
-from experiment.base_experiment import BaseExperiment
-from experiment.single_universal_experiment import SingleUniversalExperiment
-from experiment.selective_unviersal_experiment import SelectiveUniversalExperiment
+from cw_inspired_experiment import CWInspiredExperiment
+from base_experiment import BaseExperiment
+from single_universal_experiment import SingleUniversalExperiment
+from selective_unviersal_experiment import SelectiveUniversalExperiment
 
 ALL_MODELS = [
     'inception_v3',
@@ -55,7 +55,7 @@ CWInspiredExperiment(
     ensemble_weights=[4.0, 1.0, 1.0],
     targeted=True,
     no_augmentation=True,
-    lr=0.32,
+    lr=0.20,
     n_iter=27
 ).run()
 

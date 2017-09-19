@@ -18,17 +18,12 @@ parser.add_argument('--input_dir', metavar='DIR',
                     help='Input directory with images.')
 parser.add_argument('--output_file', metavar='FILE',
                     help='Output file to save labels.')
-parser.add_argument('--checkpoint_path', default=None,
-                    help='Path to network checkpoint.')
 parser.add_argument('--img_size', type=int, default=299, metavar='N',
                     help='Image patch size (default: 299)')
 parser.add_argument('--batch_size', type=int, default=100, metavar='N',
                     help='Batch size (default: 32)')
 
-
 TIME_LIMIT = 2000
-
-
 
 def main():
     args = parser.parse_args()
@@ -49,7 +44,7 @@ def main():
         'processors': processing.build_8crop_augmentation(target_size=299, norm='dpn'),
         'num_samples': 8,
         'num_classes': 1000}
-    model_configs['dpn68b'] = {
+    model_configs['dpn68'] = {
         'processors': processing.build_8crop_augmentation(target_size=320, norm='dpn'),
         'num_samples': 8,
         'num_classes': 1000}

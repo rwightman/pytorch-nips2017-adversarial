@@ -1,4 +1,4 @@
-from experiment.experiment import AttackExperiment
+from experiment import AttackExperiment
 
 
 class SelectiveUniversalExperiment(AttackExperiment):

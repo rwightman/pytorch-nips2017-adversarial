@@ -1,4 +1,4 @@
-from experiment.experiment import DefenseExperiment
+from experiment import DefenseExperiment
 from models.model_configs import config_from_string
 
 

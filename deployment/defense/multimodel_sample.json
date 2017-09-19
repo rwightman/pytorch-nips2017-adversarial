@@ -1,0 +1,6 @@
+{
+  "name": "multimodel_sample",
+  "run_cmd": "run_defense_multi",
+  "checkpoints_to_copy": ["adv_inception_v3", "adv_inception_resnet_v2", "dpn107", "dpn68"],
+  "runargs": ["--batch_size", "8"]
+}
