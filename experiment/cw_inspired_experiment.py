@@ -1,4 +1,4 @@
-from experiment.experiment import AttackExperiment
+from experiment import AttackExperiment
 from models.model_configs import config_from_string
 
 class CWInspiredExperiment(AttackExperiment):

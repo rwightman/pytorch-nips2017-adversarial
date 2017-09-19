@@ -4,8 +4,9 @@ import yaml
 import subprocess
 
 sys.path.insert(0, os.path.abspath('../python'))
+sys.path.insert(0, os.path.abspath('../'))
 from deployment import deploy
-from experiment.validate_attack_inf_norm import validate
+from validate_attack_inf_norm import validate
 
 with open('../python/local_config.yaml', 'r') as f:
     local_config = yaml.load(f)

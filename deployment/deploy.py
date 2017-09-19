@@ -131,6 +131,13 @@ def deploy_defense(cfg, dont_tar=False):
         runargs.append('--checkpoint_paths')
         runargs.extend(checkpoint_paths)
 
+
+    if 'checkpoints_to_copy' in cfg:
+        checkpoint_paths = [config_from_string(m)['checkpoint_file'] for m in cfg['checkpoints_to_copy']]
+        checkpoints_to_copy = [os.path.join(CHECKPOINT_DIR, cp) for cp in checkpoint_paths]
+        for cp_src, cp_dst in zip(checkpoints_to_copy, checkpoint_paths):
+            shutil.copy(cp_src, os.path.join(deployment_path, cp_dst))
+
     if 'npy_file' in cfg:
         runargs.extend(['--npy_file', os.path.join('python', cfg['npy_file'])])
 

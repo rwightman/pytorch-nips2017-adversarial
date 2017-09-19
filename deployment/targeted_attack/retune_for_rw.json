@@ -1,0 +1,11 @@
+{
+    "name": "round_3_targeted",
+    "attack_type": "targeted_attack",
+    "ensemble": ["adv_inception_resnet_v2", "inception_v3", "adv_inception_v3"],
+    "ensemble_weights" : ["4.0", "1.0", "1.0"],
+    "run_cmd": "run_cw_inspired",
+    "runargs": ["--targeted",
+                "--no_augmentation",
+                "--n_iter","27",
+                "--lr", "0.20"]
+}
