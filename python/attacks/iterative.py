@@ -38,21 +38,27 @@ class AttackIterative:
         target_var = autograd.Variable(target)
         eps = self.eps
         step_alpha = self.step_alpha
+        random_alpha = eps / 6
 
         step = 0
         while step < self.num_steps:
             zero_gradients(input_var)
-            output = model(input_var)
 
-            step_adv = input_var.data.clone()
-            if not step:
+            done_fwd = False
+            if step == 0:
                 if not self.targeted:
-                    # for non-targeted, we'll move away from most likely
+                    # for non-targeted, we'll move away from most likely predicted target
+                    output = model(input_var)
                     target_var.data = output.data.max(1)[1]
+                    done_fwd = True
+
                 if self.random_start:
-                    step_adv += torch.normal(means=torch.zeros(step_adv.size()).cuda(), std=0.02)
-                    #step_adv += step_alpha/6 * torch.sign(
-                    #    torch.normal(means=torch.zeros(step_adv.size()).cuda(), std=1.0))
+                    input_var.data += random_alpha * torch.sign(
+                        torch.normal(means=torch.zeros(input_var.size()).cuda(), std=1.0))
+                    done_fwd = False
+
+            if not done_fwd:
+                output = model(input_var)
 
             loss = self.loss_fn(output, target_var)
             loss.backward()
@@ -68,9 +74,9 @@ class AttackIterative:
 
             # perturb current input image by normalized and scaled gradient
             if self.targeted:
-                step_adv -= normed_grad
+                step_adv = input_var.data - normed_grad
             else:
-                step_adv += normed_grad
+                step_adv = input_var.data + normed_grad
 
             # calculate total adversarial perturbation from original image and clip to epsilon constraints
             total_adv = step_adv - input
