@@ -37,18 +37,22 @@ def main():
     dataset = Dataset(args.input_dir, target_file='')
 
     model_configs = OrderedDict()
+    model_configs['inception_v3'] = {
+        'processors': processing.build_8crop_augmentation(target_size=299, norm='le'),
+        'num_samples': 8,
+        'num_classes': 1001}
+    model_configs['inception_resnet_v2'] = {
+        'processors': processing.build_8crop_augmentation(target_size=299, norm='le'),
+        'num_samples': 8,
+        'num_classes': 1001}
     model_configs['dpn107'] = {
-        'processors': processing.build_4crop_augmentation(target_size=299, norm='dpn'),
-        'num_samples': 2,
+        'processors': processing.build_8crop_augmentation(target_size=299, norm='dpn'),
+        'num_samples': 8,
         'num_classes': 1000}
     model_configs['dpn68b'] = {
-        'processors': processing.build_4crop_augmentation(target_size=320, norm='dpn'),
-        'num_samples': 2,
+        'processors': processing.build_8crop_augmentation(target_size=320, norm='dpn'),
+        'num_samples': 8,
         'num_classes': 1000}
-    model_configs['inception_resnet_v2'] = {
-        'processors': processing.build_4crop_augmentation(target_size=299, norm='le'),
-        'num_samples': 2,
-        'num_classes': 1001}
     # model_args['densenet169'] = {
     #     'processors': [processing.build_random_augmentation(target_size=224, norm='torchvision')],
     #     'num_samples': 8,

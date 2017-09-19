@@ -13,6 +13,7 @@ import sys
 import time
 
 import numpy as np
+import pandas as pd
 import torch
 import torch.autograd as autograd
 import torch.nn.functional as F
@@ -35,10 +36,10 @@ parser.add_argument('--batch_size', type=int, default=100, metavar='N',
                     help='Batch size (default: 32)')
 
 
-TIME_LIMIT = 3000
+TIME_LIMIT = 5000
 
 CHECKPOINTS = {
-    'inceptionv3': 'inception_v3_google-1a9a5a14.pth',
+    'inception_v3': 'adv_inception_v3_rw.pth',
     'densenet121': 'densenet121-fixed.pth',
     'densenet169': 'densenet169-clean.pth',
     'fbresnet200': 'fbresnet200.pth',
@@ -55,14 +56,22 @@ def reduce_mean(x, geom=False):
         if len(x) > 1:
             num_comb = float(len(x))
             o = x[0]
-            for x in x[1:]:
-                np.multiply(o, x, o)
+            for xi in x[1:]:
+                np.multiply(o, xi, o)
             np.power(o, 1/num_comb, o)
         else:
             o = x[0]
     else:
         o = np.mean(x, axis=0)
     return o
+
+
+def mrr(x):
+    ro = []
+    for xi in x:
+        r = pd.DataFrame(xi).rank(ascending=False, axis=1).as_matrix()
+        ro.append(1 / r)
+    return np.mean(ro, axis=0)
 
 
 class MultiModel:
@@ -126,9 +135,7 @@ class MultiModel:
                     sys.stdout.flush()
 
             model_outputs = np.concatenate(outputs_batch, axis=0)
-            factor = 2 if arch == 'inception_resnet_v2' else 1
-            for _ in range(factor):
-                outputs.append(model_outputs)
+            outputs.append(model_outputs)
 
             model_dur = time.time() - model_start
             print('Model {0} took {1:.3f} ({2:0.3f} per 100 sample)'.format(
@@ -140,7 +147,8 @@ class MultiModel:
                 break
 
         sys.stdout.flush()
-        o = reduce_mean(outputs, geom=False)
+        #o = reduce_mean(outputs, geom=False)
+        o = mrr(outputs)
         o = np.argmax(o, axis=1) + 1
 
         defense_dur = time.time() - defense_start
