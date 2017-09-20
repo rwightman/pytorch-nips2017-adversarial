@@ -9,7 +9,7 @@ from __future__ import print_function
 import argparse
 
 from attacks.carlini_wagner_l2 import AttackCarliniWagnerL2
-from attacks.runner import run_attack
+from attacks.image_save_runner import ImageSaveAttackRunner
 from dataset import Dataset
 from models import create_ensemble
 from models.model_configs import config_from_string
@@ -58,7 +58,8 @@ def main():
         search_steps=args.search_steps,
         debug=args.debug)
 
-    run_attack(args, target_model, attack, dataset)
+    runner = ImageSaveAttackRunner(dataset, args.output_dir)
+    runner.run(attack, batch_size=args.batch_size)
 
 if __name__ == '__main__':
     main()

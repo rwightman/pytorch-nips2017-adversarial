@@ -7,7 +7,7 @@ from __future__ import print_function
 
 import argparse
 from attacks.iterative import AttackIterative
-from attacks.runner import run_attack
+from attacks.image_save_runner import ImageSaveAttackRunner
 from dataset import Dataset
 from models import create_ensemble
 from models.model_configs import config_from_string
@@ -57,6 +57,7 @@ def main():
         dataset = Dataset(args.input_dir, target_file='')
 
     attack = AttackIterative(
+        model=target_model,
         targeted=args.targeted,
         random_start=args.random_start,
         max_epsilon=args.max_epsilon,
@@ -65,7 +66,8 @@ def main():
         num_steps=args.steps,
         debug=args.debug)
 
-    run_attack(args, target_model, attack, dataset)
+    runner = ImageSaveAttackRunner(dataset, args.output_dir)
+    runner.run(attack, batch_size=args.batch_size)
 
 if __name__ == '__main__':
     main()

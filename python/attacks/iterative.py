@@ -5,15 +5,18 @@ import torch
 from torch import autograd
 from torch.autograd.gradcheck import zero_gradients
 from .helpers import *
+from .attack import Attack
 
 
-class AttackIterative:
+class AttackIterative(Attack):
 
     def __init__(
             self,
+            model,
             targeted=True, random_start=False, max_epsilon=16, norm=float('inf'),
             step_alpha=None, num_steps=None, debug=False):
 
+        self.model = model
         self.targeted = targeted
         self.random_start = random_start
         self.eps = max_epsilon / 255.0
@@ -33,12 +36,12 @@ class AttackIterative:
         self.loss_fn = torch.nn.NLLLoss().cuda()
         self.debug = debug
 
-    def run(self, model, input, target, batch_idx=0):
+    def __call__(self, input, target, batch_idx=0, deadline_time=None):
         input_var = autograd.Variable(input, requires_grad=True)
         target_var = autograd.Variable(target)
         eps = self.eps
         step_alpha = self.step_alpha
-        random_alpha = eps / 6
+        random_alpha = eps / 5
 
         step = 0
         while step < self.num_steps:
@@ -48,7 +51,7 @@ class AttackIterative:
             if step == 0:
                 if not self.targeted:
                     # for non-targeted, we'll move away from most likely predicted target
-                    output = model(input_var)
+                    output = self.model(input_var)
                     target_var.data = output.data.max(1)[1]
                     done_fwd = True
 
@@ -58,7 +61,7 @@ class AttackIterative:
                     done_fwd = False
 
             if not done_fwd:
-                output = model(input_var)
+                output = self.model(input_var)
 
             loss = self.loss_fn(output, target_var)
             loss.backward()
@@ -100,4 +103,6 @@ class AttackIterative:
             input_var.data = input_adv
             step += 1
 
-        return input_adv.permute(0, 2, 3, 1).cpu().numpy()
+        return input_adv.permute(0, 2, 3, 1), \
+               None if self.targeted else target_var.data
+
