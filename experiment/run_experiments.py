@@ -67,6 +67,15 @@ CWInspiredExperiment(
     n_iter=27
 ).run()
 
+CWInspiredExperiment(
+    ensemble=['adv_inception_resnet_v2','inception_v3_tf', 'resnet34'],
+    ensemble_weights=[1.0, 1.0, 1.0],
+    targeted=False,
+    lr=0.24,
+    n_iter=31,
+    target_nth_highest=3,
+).run()
+
 SelectiveUniversalExperiment(
     npy_files=all_npy_files,
     ensemble=["adv_inception_resnet_v2", "inception_v3_tf"],

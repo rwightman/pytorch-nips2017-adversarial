@@ -1,5 +1,8 @@
 import argparse
 
+import torchvision.transforms as transforms
+
+from attacks.image_save_runner import ImageSaveAttackRunner
 from attacks.selective_universal import SelectiveUniversal
 from dataset import Dataset
 from models import create_ensemble
@@ -23,21 +26,25 @@ def main():
 
     dataset = Dataset(args.input_dir, target_file='')
 
+    tf = transforms.Compose([transforms.Scale(299),
+                             transforms.CenterCrop(299),
+                             transforms.ToTensor()])
+    dataset.set_transform(tf)
+
     cfgs = [config_from_string(s) for s in args.ensemble]
 
     target_model = create_ensemble(cfgs, args.ensemble_weights, args.checkpoint_paths).cuda()
     target_model.eval()
 
     attack = SelectiveUniversal(
-        args.input_dir,
-        args.output_dir,
         args.max_epsilon,
         target_model,
         args.npy_files,
-        dataset
     )
 
-    attack.run()
+    runner = ImageSaveAttackRunner(dataset, args.output_dir)
+    # Only supports batch size of 1
+    runner.run(attack, 1)
 
 if __name__ == '__main__':
     main()
