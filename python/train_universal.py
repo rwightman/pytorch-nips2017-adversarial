@@ -21,13 +21,13 @@ CHECKPOINT_DIR = local_config['checkpoints_dir']
 
 input_dir = '/media/stuff/ImageNet/train'
 
-TARGET_CLASS = 851
+TARGET_CLASS = 815
 
-max_epsilon = 16.0
+max_epsilon = 8.0
 batch_size = 4
 
-ensemble = ['adv_inception_resnet_v2', 'inception_v3_tf', 'adv_inception_v3', 'resnet101', 'dpn68', 'densenet161', 'alexnet']
-ensemble_weights = [1.0, 1.5, 1.0, 0.5, 0.75, 0.75, 0.5]
+ensemble = ['adv_inception_resnet_v2', 'inception_v3_tf', 'adv_inception_v3', 'densenet161', 'dpn68b_extra', 'resnet101']
+ensemble_weights = [3.0, 2.0, 1.0, 1.0, 1.0, 1.0]
 
 """
 

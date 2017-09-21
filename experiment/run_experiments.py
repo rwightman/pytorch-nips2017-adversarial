@@ -49,6 +49,14 @@ def complete_remaining():
         for d in ALL_MODELS:
             BaseExperiment(ensemble=[d], ensemble_weights=[1.0], attack_type='targeted_attack', attack_name=a).run()
 
+all_npy_files = [
+    "brain_coral.npy", "crt.npy", "jigsaw.npy", "jigsaw2.npy", "jigsaw3.npy", "jigsaw4.npy", "monitor.npy",
+    "spider_web.npy", "tv.npy", "prayer_rug.npy", "african_chameleon.npy", "african_chameleon2.npy"
+]
+
+for f in all_npy_files:
+    SingleUniversalExperiment(f).run()
+complete_remaining()
 
 CWInspiredExperiment(
     ensemble=['adv_inception_resnet_v2','inception_v3_tf', 'adv_inception_v3'],
@@ -59,8 +67,15 @@ CWInspiredExperiment(
     n_iter=27
 ).run()
 
-SingleUniversalExperiment('crt.npy').run()
-
-SelectiveUniversalExperiment(npy_files=['crt.npy', 'jigsaw.npy'],ensemble=['inception_v3_tf'],ensemble_weights=[1.0]).run()
+SelectiveUniversalExperiment(
+    npy_files=all_npy_files,
+    ensemble=["adv_inception_resnet_v2", "inception_v3_tf"],
+    ensemble_weights=["1.0", "1.0"]
+).run()
+SelectiveUniversalExperiment(
+    npy_files=all_npy_files,
+    ensemble=["adv_inception_resnet_v2", "inception_v3_tf", "adv_inception_v3"],
+    ensemble_weights=["1.0", "1.0", "1.0"]
+).run()
 
 complete_remaining()
