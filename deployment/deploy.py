@@ -54,17 +54,24 @@ def deploy_attack(cfg, dont_tar=False):
         runargs.append('--checkpoint_paths')
         runargs.extend(checkpoint_paths)
 
+    shutil.copytree('../python', os.path.join(deployment_path, 'python'))
+
     if 'npy_file' in cfg:
-        npy_file = cfg['npy_file']
-        runargs.extend(['--npy_file', os.path.join('python',npy_file)])
+        runargs.extend(['--npy_file', os.path.join('python', cfg['npy_file'])])
+        shutil.copy(
+            os.path.join('../data/univ/', cfg['npy_file']),
+            os.path.join(deployment_path, 'python', cfg['npy_file'])
+        )
 
     if 'npy_files' in cfg:
-        npy_files = cfg['npy_files']
-        npy_files_arg = ['--npy_files']
-        npy_files_arg.extend([os.path.join('python', nf) for nf in npy_files])
-        runargs.extend(npy_files_arg)
-
-    shutil.copytree('../python', os.path.join(deployment_path, 'python'))
+        npy_files = [os.path.join('python', f) for f in cfg['npy_files']]
+        runargs.append('--npy_files')
+        runargs.extend(npy_files)
+        for src_file, dst_file in zip(cfg['npy_files'], npy_files):
+            shutil.copy(
+                os.path.join('../data/univ/',src_file),
+                os.path.join(deployment_path, dst_file)
+            )
 
     with open(run_template_path, 'r') as run_template_file:
         run_template = Template(run_template_file.read())
@@ -137,14 +144,6 @@ def deploy_defense(cfg, dont_tar=False):
         checkpoints_to_copy = [os.path.join(CHECKPOINT_DIR, cp) for cp in checkpoint_paths]
         for cp_src, cp_dst in zip(checkpoints_to_copy, checkpoint_paths):
             shutil.copy(cp_src, os.path.join(deployment_path, cp_dst))
-
-    if 'npy_file' in cfg:
-        runargs.extend(['--npy_file', os.path.join('python', cfg['npy_file'])])
-
-    if 'npy_files' in cfg:
-        npy_files = [os.path.join('python', f) for f in cfg['npy_files']]
-        runargs.append('--npy_files')
-        runargs.extend(npy_files)
 
     shutil.copytree('../python', os.path.join(deployment_path, 'python'))
 
