@@ -1,8 +1,6 @@
 import argparse
-import os
-import torch
 import torch.nn as nn
-import torchvision.transforms as transforms
+
 
 from attacks.cw_inspired import CWInspired
 from attacks.image_save_runner import ImageSaveAttackRunner
@@ -74,11 +72,6 @@ def main():
         dataset = Dataset(args.input_dir)
     else:
         dataset = Dataset(args.input_dir, target_file='')
-
-    tf = transforms.Compose([transforms.Scale(299),
-                             transforms.CenterCrop(299),
-                             transforms.ToTensor()])
-    dataset.set_transform(tf)
 
     attack = CWInspired(
         target_model,

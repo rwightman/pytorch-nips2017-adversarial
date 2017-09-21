@@ -1,7 +1,5 @@
 import argparse
 
-import torchvision.transforms as transforms
-
 from attacks.image_save_runner import ImageSaveAttackRunner
 from attacks.universal_perturbation import UniversalPerturbation
 from dataset import Dataset
@@ -20,11 +18,6 @@ def main():
     args = parser.parse_args()
 
     dataset = Dataset(args.input_dir, target_file='')
-
-    tf = transforms.Compose([transforms.Scale(299),
-                             transforms.CenterCrop(299),
-                             transforms.ToTensor()])
-    dataset.set_transform(tf)
 
     attack = UniversalPerturbation(
         args.max_epsilon,
