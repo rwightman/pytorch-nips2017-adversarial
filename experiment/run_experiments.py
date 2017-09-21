@@ -50,8 +50,20 @@ def complete_remaining():
             BaseExperiment(ensemble=[d], ensemble_weights=[1.0], attack_type='targeted_attack', attack_name=a).run()
 
 all_npy_files = [
-    "brain_coral.npy", "crt.npy", "jigsaw.npy", "jigsaw2.npy", "jigsaw3.npy", "jigsaw4.npy", "monitor.npy",
-    "spider_web.npy", "tv.npy", "prayer_rug.npy", "african_chameleon.npy", "african_chameleon2.npy"
+    "african_chameleon.npy",
+    "african_chameleon2.npy",
+    "brain_coral.npy",
+    "crt.npy",
+    "jigsaw.npy",
+    "jigsaw2.npy",
+    "jigsaw3.npy",
+    "jigsaw4.npy",
+    "monitor.npy",
+    "prayer_rug.npy",
+    "spider_web.npy",
+    "spider_web2.npy",
+    "spider_web3.npy",
+    "tv.npy",
 ]
 
 for f in all_npy_files:
