@@ -68,6 +68,9 @@ def config_from_string(string):
         'dpn68': {
             'model_name': 'dpn68', 'num_classes': 1000, 'input_size': 299,
             'checkpoint_file': 'dpn68-abcc47ae.pth', 'drop_first_class': False},
+        'dpn68b_extra': {
+            'model_name': 'dpn68b', 'num_classes': 1000, 'input_size': 299,
+            'checkpoint_file': 'dpn68_extra.pth', 'drop_first_class': False},
         'adv_inception_resnet_v2': {
             'model_name': 'inception_resnet_v2', 'num_classes': 1001, 'input_size': 299,
             'checkpoint_file': 'adv_inception_resnet_v2.pth', 'drop_first_class': True},
