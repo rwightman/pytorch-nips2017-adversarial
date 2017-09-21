@@ -4,6 +4,7 @@ import torch
 import torch.nn as nn
 
 from attacks.cw_inspired import CWInspired
+from attacks.image_save_runner import ImageSaveAttackRunner
 from dataset import Dataset
 
 from models import create_ensemble
@@ -49,11 +50,8 @@ def main():
 
     cfgs = [config_from_string(s) for s in args.ensemble]
 
-    target_model = create_ensemble(cfgs, args.ensemble_weights, args.checkpoint_paths)
-
-    for transformed_model in target_model.models:
-        transformed_model.model.cuda()
-        transformed_model.model.eval()
+    target_model = create_ensemble(cfgs, args.ensemble_weights, args.checkpoint_paths).cuda()
+    target_model.eval()
 
     if args.no_augmentation:
         augmentation = lambda x: x
@@ -77,22 +75,19 @@ def main():
         dataset = Dataset(args.input_dir, target_file='')
 
     attack = CWInspired(
-        args.input_dir,
-        args.output_dir,
-        args.max_epsilon,
         target_model,
         augmentation,
-        dataset,
+        max_epsilon=args.max_epsilon,
         n_iter=args.n_iter,
         lr=args.lr,
         targeted=args.targeted,
         target_nth_highest=args.target_nth_highest,
-        batch_size=args.batch_size,
         prob_dont_augment=0.0,
         initial_w_matrix=args.initial_w_matrix
     )
 
-    attack.run()
+    runner = ImageSaveAttackRunner(dataset, args.output_dir)
+    runner.run(attack, args.batch_size)
 
 
 if __name__ == '__main__':

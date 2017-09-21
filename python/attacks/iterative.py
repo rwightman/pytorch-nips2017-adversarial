@@ -5,17 +5,21 @@ import torch
 from torch import autograd
 from torch.autograd.gradcheck import zero_gradients
 from .helpers import *
+from .attack import Attack
 
 
-class AttackIterative:
+class AttackIterative(Attack):
 
     def __init__(
             self,
-            targeted=True, max_epsilon=16, norm=float('inf'),
-            step_alpha=None, num_steps=None, cuda=True, debug=False):
+            model,
+            targeted=True, random_start=False, max_epsilon=16, norm=float('inf'),
+            step_alpha=None, num_steps=None, debug=False):
 
+        self.model = model
         self.targeted = targeted
-        self.eps = 2.0 * max_epsilon / 255.0
+        self.random_start = random_start
+        self.eps = max_epsilon / 255.0
         self.num_steps = num_steps or 10
         self.norm = norm
         if not step_alpha:
@@ -29,24 +33,36 @@ class AttackIterative:
                     self.step_alpha = 1.0
         else:
             self.step_alpha = step_alpha
-        self.loss_fn = torch.nn.CrossEntropyLoss()
-        if cuda:
-            self.loss_fn = self.loss_fn.cuda()
+        self.loss_fn = torch.nn.NLLLoss().cuda()
         self.debug = debug
 
-    def run(self, model, input, target, batch_idx=0):
+    def __call__(self, input, target, batch_idx=0, deadline_time=None):
         input_var = autograd.Variable(input, requires_grad=True)
         target_var = autograd.Variable(target)
         eps = self.eps
         step_alpha = self.step_alpha
+        random_alpha = eps / 5
 
         step = 0
         while step < self.num_steps:
             zero_gradients(input_var)
-            output = model(input_var)
-            if not self.targeted and not step:
-                # for non-targeted, we'll move away from most likely
-                target_var.data = output.data.max(1)[1]
+
+            done_fwd = False
+            if step == 0:
+                if not self.targeted:
+                    # for non-targeted, we'll move away from most likely predicted target
+                    output = self.model(input_var)
+                    target_var.data = output.data.max(1)[1]
+                    done_fwd = True
+
+                if self.random_start:
+                    input_var.data += random_alpha * torch.sign(
+                        torch.normal(means=torch.zeros(input_var.size()).cuda(), std=1.0))
+                    done_fwd = False
+
+            if not done_fwd:
+                output = self.model(input_var)
+
             loss = self.loss_fn(output, target_var)
             loss.backward()
 
@@ -83,8 +99,10 @@ class AttackIterative:
 
             # apply total adversarial perturbation to original image and clip to valid pixel range
             input_adv = input + total_adv
-            input_adv = torch.clamp(input_adv, -1.0, 1.0)
+            input_adv = torch.clamp(input_adv, 0., 1.0)
             input_var.data = input_adv
             step += 1
 
-        return input_adv.permute(0, 2, 3, 1).cpu().numpy()
+        return input_adv.permute(0, 2, 3, 1), \
+               None if self.targeted else target_var.data
+

@@ -10,23 +10,24 @@ import numpy as np
 from torch import optim
 from torch import autograd
 from .helpers import *
+from .attack import Attack
 
 
-class AttackCarliniWagnerL2:
+class AttackCarliniWagnerL2(Attack):
 
-    def __init__(self, targeted=True, search_steps=None, max_steps=None, cuda=True, debug=False):
-        self.debug = debug
+    def __init__(self, model, targeted=True, search_steps=None, max_steps=None, debug=False):
+        self.model = model
         self.targeted = targeted
         self.num_classes = 1000
         self.confidence = 33  # FIXME need to find a good value for this, 0 value used in paper not doing much...
         self.initial_const = 0.33  # bumped up from default of .01 in reference code
-        self.binary_search_steps = search_steps or 5
+        self.binary_search_steps = search_steps or 3
         self.repeat = self.binary_search_steps >= 10
-        self.max_steps = max_steps or 1500
+        self.max_steps = max_steps or 200
+        self.debug = debug
         self.abort_early = True
-        self.clip_min = -1.
+        self.clip_min = 0.
         self.clip_max = 1.
-        self.cuda = cuda
         self.clamp_fn = ''  # set to something else perform a simple clamp instead of tanh
         self.init_rand = True  # an experiment, does a random starting point help?
 
@@ -60,14 +61,14 @@ class AttackCarliniWagnerL2:
         loss = loss1 + loss2
         return loss
 
-    def _optimize(self, optimizer, model, input_var, modifier_var, target_var, scale_const_var, input_orig=None):
+    def _optimize(self, optimizer, input_var, modifier_var, target_var, scale_const_var, input_orig=None):
         # apply modifier and clamp resulting image to keep bounded from clip_min to clip_max
         if self.clamp_fn == 'tanh':
             input_adv = tanh_rescale(modifier_var + input_var, self.clip_min, self.clip_max)
         else:
             input_adv = torch.clamp(modifier_var + input_var, self.clip_min, self.clip_max)
 
-        output = model(input_adv)
+        output = self.model(input_adv)
 
         # distance to the original input data
         if input_orig is None:
@@ -87,7 +88,7 @@ class AttackCarliniWagnerL2:
         input_adv_np = input_adv.data.permute(0, 2, 3, 1).cpu().numpy()  # back to BHWC for numpy consumption
         return loss_np, dist_np, output_np, input_adv_np
 
-    def run(self, model, input, target, batch_idx=0):
+    def __call__(self, input, target, batch_idx=0, deadline_time=None):
         batch_size = input.size(0)
 
         # set the lower and upper bounds accordingly
@@ -102,7 +103,7 @@ class AttackCarliniWagnerL2:
 
         # setup input (image) variable, clamp/scale as necessary
         if self.clamp_fn == 'tanh':
-            # convert to tanh-space, input already int -1 to 1 range, does it make sense to do
+            # convert to tanh-space, input already in clip_min to clip_max range, does it make sense to do
             # this as per the reference implementation or can we skip the arctanh?
             input_var = autograd.Variable(torch_arctanh(input), requires_grad=False)
             input_orig = tanh_rescale(input_var, self.clip_min, self.clip_max)
@@ -111,9 +112,7 @@ class AttackCarliniWagnerL2:
             input_orig = None
 
         # setup the target variable, we need it to be in one-hot form for the loss function
-        target_onehot = torch.zeros(target.size() + (self.num_classes,))
-        if self.cuda:
-            target_onehot = target_onehot.cuda()
+        target_onehot = torch.zeros(target.size() + (self.num_classes,)).cuda()
         target_onehot.scatter_(1, target.unsqueeze(1), 1.)
         target_var = autograd.Variable(target_onehot, requires_grad=False)
 
@@ -121,12 +120,10 @@ class AttackCarliniWagnerL2:
         modifier = torch.zeros(input_var.size()).float()
         if self.init_rand:
             # Experiment with a non-zero starting point...
-            modifier = torch.normal(means=modifier, std=0.001)
-        if self.cuda:
-            modifier = modifier.cuda()
+            modifier = torch.normal(means=modifier, std=0.001).cuda()
         modifier_var = autograd.Variable(modifier, requires_grad=True)
 
-        optimizer = optim.Adam([modifier_var], lr=0.0005)
+        optimizer = optim.Adam([modifier_var], lr=0.1)
 
         for search_step in range(self.binary_search_steps):
             print('Batch: {0:>3}, search step: {1}'.format(batch_idx, search_step))
@@ -141,17 +138,14 @@ class AttackCarliniWagnerL2:
             if self.repeat and search_step == self.binary_search_steps - 1:
                 scale_const = upper_bound
 
-            scale_const_tensor = torch.from_numpy(scale_const).float()
-            if self.cuda:
-                scale_const_tensor = scale_const_tensor.cuda()
-            scale_const_var = autograd.Variable(scale_const_tensor, requires_grad=False)
+            scale_const_var = autograd.Variable(
+                torch.from_numpy(scale_const).float().cuda(), requires_grad=False)
 
             prev_loss = 1e6
             for step in range(self.max_steps):
                 # perform the attack
                 loss, dist, output, adv_img = self._optimize(
                     optimizer,
-                    model,
                     input_var,
                     modifier_var,
                     target_var,
@@ -227,4 +221,4 @@ class AttackCarliniWagnerL2:
             sys.stdout.flush()
             # end outer search loop
 
-        return o_best_attack
+        return o_best_attack, None
