@@ -4,18 +4,25 @@ import math
 import time
 import torch
 import torch.utils.data
+import numpy as np
+from copy import deepcopy
 from torchvision import transforms
 from torchvision import datasets
 from torchvision import utils
 
 from attacks.iterative import AttackIterative
+from attacks.cw_inspired import CWInspired
+from attacks.selective_universal import SelectiveUniversal
 from models import create_ensemble, create_model
 from models.model_configs import config_from_string
+import processing
 
 parser = argparse.ArgumentParser(description='PyTorch ImageNet Training')
 parser.add_argument('data', metavar='DIR',
                     help='path to dataset')
-parser.add_argument('-j', '--workers', default=4, type=int, metavar='N',
+parser.add_argument('--mp', action='store_true', default=False,
+                    help='multi-process training, attack and defense in separate processes')
+parser.add_argument('--workers', default=4, type=int, metavar='N',
                     help='number of data loading workers (default: 4)')
 parser.add_argument('--epochs', default=100, type=int, metavar='N',
                     help='number of total epochs to run')
@@ -39,8 +46,6 @@ parser.add_argument('--print-freq', '-p', default=10, type=int,
                     metavar='N', help='print frequency (default: 10)')
 parser.add_argument('--resume', default='', type=str, metavar='PATH',
                     help='path to latest checkpoint (default: none)')
-parser.add_argument('-e', '--evaluate', dest='evaluate', action='store_true',
-                    help='evaluate model on validation set')
 parser.add_argument('--sparse', action='store_true', default=False,
                     help='enable sparsity masking for DSD training')
 
@@ -141,16 +146,41 @@ def validate(args, val_loader, model, criterion):
     return top1.avg
 
 
+def attack_factory(model, cfg):
+    cfg = deepcopy(cfg)
+    attack_name = cfg.pop('attack_name')
+    print('Creating attack (%s), with args: ' % attack_name, cfg)
+    if attack_name == 'iterative':
+        attack = AttackIterative(model, **cfg)
+    elif attack_name == 'cw_inspired':
+        augmentation = processing.build_anp_augmentation_module()
+        augmentation = augmentation.cuda(0)
+        attack = CWInspired(model, augmentation, **cfg)
+    elif attack_name == 'selective_universal':
+        attack = SelectiveUniversal(model, **cfg)
+    else:
+        assert False, 'Unknown attack'
+    return attack
+
+
 class AttackEnsemble:
 
     def __init__(self, loader, output_batch_size=8):
         self.loader = loader
-        self.attack_cfgs = []  # FIXME need to define these
+        self.attack_cfgs = [
+            {'attack_name': 'iterative', 'targeted': True, 'num_steps': 10, 'target_rand': True},
+            {'attack_name': 'iterative', 'targeted': False, 'num_steps': 1, 'random_start': True},
+            {'attack_name': 'cw_inspired', 'targeted': True, 'n_iter': 38},
+            {'attack_name': 'cw_inspired', 'targeted': False, 'n_iter': 38},
+        ]
+        self.attack_probs = [0.4, 0.4, 0.1, 0.1]
         self.model_cfgs = [  # FIXME these are currently just test configs, need to setup properly
             {'models': ['inception_v3_tf']},
             {'models': ['inception_resnet_v2', 'resnet34'], 'weights': [1.0, .9]},
             {'models': ['adv_inception_resnet_v2', 'inception_v3_tf']},
         ]
+        self.max_epsilons = np.array([8., 12., 16.])
+        self.max_epsilon_probs = None
         self.models = []
         self.model_idx = None
         self.attack_idx = 0
@@ -164,23 +194,26 @@ class AttackEnsemble:
 
     def _load_models(self):
         for mc in self.model_cfgs:
+            # pre-load all model params into system (CPU) memory
             cfgs = [config_from_string(x) for x in mc['models']]
-            weights = mc['weights'] if 'weights' in mc else None
+            weights = mc['weights'] if 'weights' in mc and len(mc['weights']) else None
             ensemble = create_ensemble(cfgs, weights)
             self.models.append(ensemble)
 
     def _next_model(self):
         if self.model_idx is not None:
-            self.models[self.model_idx].cpu()
+            self.models[self.model_idx].cpu()  # put model params back on CPU
         self.model_idx = inc_roll(self.model_idx, len(self.models))
         model = self.models[self.model_idx]
-        model.cuda(self.input_device)
+        model.cuda(self.input_device)   # move model params to GPU
         return model
 
     def _next_attack(self, model):
-        attack_idx = inc_roll(self.attack_idx, 1)
-        # FIXME just one fixed attack to test with
-        attack = AttackIterative(model, targeted=False, random_start=True, max_epsilon=16)
+        attack_idx = np.random.choice(range(len(self.attack_cfgs)), p=self.attack_probs)
+        cfg = self.attack_cfgs[attack_idx]
+        if not 'max_epsilon' in cfg:
+            cfg['max_epsilon'] = np.random.choice(self.max_epsilons, p=self.max_epsilon_probs)
+        attack = attack_factory(model, cfg)
         return attack
 
     def _initialize_outputs(self):
@@ -207,20 +240,23 @@ class AttackEnsemble:
             target = target.cuda(self.input_device)
             in_idx = 0
             for j in range(self._output_factor()):
-                print(j)
-                # copy normal samples from input to output
+                # copy unperturbed samples from input to output
                 num_u = self.input_batch_size // 2
-                print('norm', num_u, input.size(), images.size())
+                print(num_u, input.size(), images.size())
                 images[out_idx:out_idx + num_u, :, :, :] = input[in_idx:in_idx + num_u, :, :, :]
                 true_target[out_idx:out_idx + num_u] = target[in_idx:in_idx + num_u]
                 attack_target[out_idx:out_idx + num_u] = target[in_idx:in_idx + num_u]
                 out_idx += num_u
                 in_idx += num_u
 
-                # calculate perturbed samples for current attack and copy to output
+                # compute perturbed samples for current attack and copy to output
                 num_p = self.input_batch_size - num_u
-                print('pert', num_p)
-                perturbed, adv_targets = attack(input[in_idx:in_idx + num_p, :, :, :], target[in_idx:in_idx + num_p])
+
+                perturbed, adv_targets = attack(
+                    input[in_idx:in_idx + num_p, :, :, :],
+                    target[in_idx:in_idx + num_p],
+                    batch_idx=i,
+                    deadline_time=None)
                 if adv_targets is None:
                     adv_targets = target[in_idx:in_idx + num_p]
 
@@ -328,16 +364,6 @@ def main():
 
 def save_checkpoint(state, is_best, filename='checkpoint.pth.tar'):
     torch.save(state, filename)
-
-
-def attack_factory(model, attack_name='iterative', targeted=False):
-    if attack_name == 'iterative':
-        attack = AttackIterative(model, targeted=targeted)
-    elif attack_name == 'cw_inspired':
-        attack = None
-    else:
-        assert False
-    return attack
 
 
 class AverageMeter(object):

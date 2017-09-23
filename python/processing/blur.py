@@ -77,7 +77,7 @@ class GaussianBlur(nn.Module):
         blurred = F.conv2d(
             self.padding(x) if self.same else x,
             self.weight if self.trainable else torch.autograd.Variable(self.weight),
-            stride=1, padding=0, groups=3, bias=False)
+            stride=1, padding=0, groups=3)
         return blurred
 
 

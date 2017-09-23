@@ -4,8 +4,8 @@ import torch
 
 class UniversalPerturbation(object):
     def __init__(self,
-                 max_epsilon,
-                 universal_perturbation_npy_file):
+                 universal_perturbation_npy_file,
+                 max_epsilon=16):
         super(UniversalPerturbation, self).__init__()
 
         self.max_epsilon = max_epsilon

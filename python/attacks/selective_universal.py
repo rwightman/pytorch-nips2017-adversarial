@@ -7,15 +7,16 @@ import torch.autograd as autograd
 import torch.utils.data as data
 import torchvision.transforms as transforms
 
+
 class SelectiveUniversal(object):
     def __init__(self,
-                 max_epsilon,
                  target_ensemble,
-                 w_matrix_files):
+                 w_matrix_files,
+                 max_epsilon=16):
         super(SelectiveUniversal, self).__init__()
-        self.max_epsilon = max_epsilon
         self.target_ensemble = target_ensemble
         self.w_matrix_files = w_matrix_files
+        self.max_epsilon = max_epsilon
         self.nllloss = torch.nn.NLLLoss().cuda()
 
         self.w_matrices = [torch.tanh(torch.FloatTensor((np.load(f))).cuda()) for f in self.w_matrix_files]

@@ -30,9 +30,9 @@ def main():
     target_model.eval()
 
     attack = SelectiveUniversal(
-        args.max_epsilon,
         target_model,
         args.npy_files,
+        max_epsilon=args.max_epsilon,
     )
 
     runner = ImageSaveAttackRunner(dataset, args.output_dir)

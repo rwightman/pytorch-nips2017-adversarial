@@ -15,8 +15,8 @@ from .attack import Attack
 
 class AttackCarliniWagnerL2(Attack):
 
-    def __init__(self, model, targeted=True, search_steps=None, max_steps=None, debug=False):
-        self.model = model
+    def __init__(self, target_model, targeted=True, search_steps=None, max_steps=None, debug=False):
+        self.target_model = target_model
         self.targeted = targeted
         self.num_classes = 1000
         self.confidence = 33  # FIXME need to find a good value for this, 0 value used in paper not doing much...
@@ -68,7 +68,7 @@ class AttackCarliniWagnerL2(Attack):
         else:
             input_adv = torch.clamp(modifier_var + input_var, self.clip_min, self.clip_max)
 
-        output = self.model(input_adv)
+        output = self.target_model(input_adv)
 
         # distance to the original input data
         if input_orig is None:
