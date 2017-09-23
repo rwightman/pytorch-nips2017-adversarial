@@ -16,7 +16,8 @@ class RandomMirror(nn.Module):
         perform_mirror = np.random.rand() < self.mirror_prob
         if perform_mirror:
             if self.inv_idx is None:
-                self.inv_idx = autograd.Variable(torch.arange(input_size-1, -1, -1).long()).cuda()
+                self.inv_idx = autograd.Variable(
+                    torch.arange(input_size-1, -1, -1).long()).cuda(x.get_device())
             mirrored = x.index_select(3, self.inv_idx)
         else:
             mirrored = x
@@ -32,7 +33,8 @@ class Mirror(nn.Module):
     def forward(self, x):
         input_size = x.size(2)
         if self.inv_idx is None:
-            self.inv_idx = autograd.Variable(torch.arange(input_size-1, -1, -1).long()).cuda()
+            self.inv_idx = autograd.Variable(
+                torch.arange(input_size-1, -1, -1).long()).cuda(x.get_device())
         mirrored = x.index_select(3, self.inv_idx)
 
         return mirrored

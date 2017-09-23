@@ -48,5 +48,5 @@ class SelectiveUniversal(object):
                 best_w_id = w_id
                 best_perturbed = clamped.data.cpu().numpy()
 
-        return np.transpose(best_perturbed, axes=(0, 2, 3, 1)), None
+        return best_perturbed, None
 

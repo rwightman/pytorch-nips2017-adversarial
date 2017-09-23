@@ -45,7 +45,10 @@ class ImageSaveAttackRunner:
             target = target.cuda()
             input_adv, target_adv = attack(input, target, batch_idx, batch_deadline)
             if torch.is_tensor(input_adv):
+                input_adv.permute_(0, 2, 3, 1)
                 input_adv = input_adv.cpu().numpy()
+            else:
+                input_adv = np.transpose(input_adv,  axes=(0, 2, 3, 1))
             if target_adv is None:
                 target_adv = target.cpu().numpy()
             elif torch.is_tensor(target_adv):

@@ -85,7 +85,7 @@ class AttackCarliniWagnerL2(Attack):
         loss_np = loss.data[0]
         dist_np = dist.data.cpu().numpy()
         output_np = output.data.cpu().numpy()
-        input_adv_np = input_adv.data.permute(0, 2, 3, 1).cpu().numpy()  # back to BHWC for numpy consumption
+        input_adv_np = input_adv.data.cpu().numpy()
         return loss_np, dist_np, output_np, input_adv_np
 
     def __call__(self, input, target, batch_idx=0, deadline_time=None):
@@ -99,7 +99,7 @@ class AttackCarliniWagnerL2(Attack):
         # python/numpy placeholders for the overall best l2, label score, and adversarial image
         o_best_l2 = [1e10] * batch_size
         o_best_score = [-1] * batch_size
-        o_best_attack = input.permute(0, 2, 3, 1).cpu().numpy()
+        o_best_attack = input.cpu().numpy()
 
         # setup input (image) variable, clamp/scale as necessary
         if self.clamp_fn == 'tanh':
