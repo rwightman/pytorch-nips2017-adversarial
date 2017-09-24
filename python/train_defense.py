@@ -4,24 +4,24 @@ import math
 import time
 import torch
 import torch.utils.data
+import torch.multiprocessing as mp
 import numpy as np
 from copy import deepcopy
 from torchvision import transforms
 from torchvision import datasets
 from torchvision import utils
 
-from attacks.iterative import AttackIterative
-from attacks.cw_inspired import CWInspired
-from attacks.selective_universal import SelectiveUniversal
 from models import create_ensemble, create_model
 from models.model_configs import config_from_string
-import processing
+from adversarial_generator import AdversarialGenerator
 
 parser = argparse.ArgumentParser(description='PyTorch ImageNet Training')
 parser.add_argument('data', metavar='DIR',
                     help='path to dataset')
 parser.add_argument('--mp', action='store_true', default=False,
                     help='multi-process training, attack and defense in separate processes')
+parser.add_argument('--num-gpu', default=2, type=int, metavar='N',
+                    help='number of gpus to use (default: 2)')
 parser.add_argument('--workers', default=4, type=int, metavar='N',
                     help='number of data loading workers (default: 4)')
 parser.add_argument('--epochs', default=100, type=int, metavar='N',
@@ -146,154 +146,47 @@ def validate(args, val_loader, model, criterion):
     return top1.avg
 
 
-def attack_factory(model, cfg):
-    cfg = deepcopy(cfg)
-    attack_name = cfg.pop('attack_name')
-    print('Creating attack (%s), with args: ' % attack_name, cfg)
-    if attack_name == 'iterative':
-        attack = AttackIterative(model, **cfg)
-    elif attack_name == 'cw_inspired':
-        augmentation = processing.build_anp_augmentation_module()
-        augmentation = augmentation.cuda(0)
-        attack = CWInspired(model, augmentation, **cfg)
-    elif attack_name == 'selective_universal':
-        attack = SelectiveUniversal(model, **cfg)
-    else:
-        assert False, 'Unknown attack'
-    return attack
+class Q:
+    def __init__(self, dataset):
+        self.queue = mp.Queue()
+        self.done_evt = mp.Event()
+        self.dataset = dataset
+        self.shutdown = False
+        self.process = mp.Process(target=self._run)
+        self.process.start()
 
+    def _run(self):
+        while self.running:
+            for i, (input, true_target, adv_target) in enumerate(self.dataset):
+                # measure data loading time
 
-class AttackEnsemble:
+                self.queue.put((input, true_target, adv_target))
 
-    def __init__(self, loader, output_batch_size=8):
-        self.loader = loader
-        self.attack_cfgs = [
-            {'attack_name': 'iterative', 'targeted': True, 'num_steps': 10, 'target_rand': True},
-            {'attack_name': 'iterative', 'targeted': False, 'num_steps': 1, 'random_start': True},
-            {'attack_name': 'cw_inspired', 'targeted': True, 'n_iter': 38},
-            {'attack_name': 'cw_inspired', 'targeted': False, 'n_iter': 38},
-        ]
-        self.attack_probs = [0.4, 0.4, 0.1, 0.1]
-        self.model_cfgs = [  # FIXME these are currently just test configs, need to setup properly
-            {'models': ['inception_v3_tf']},
-            {'models': ['inception_resnet_v2', 'resnet34'], 'weights': [1.0, .9]},
-            {'models': ['adv_inception_resnet_v2', 'inception_v3_tf']},
-        ]
-        self.max_epsilons = np.array([8., 12., 16.])
-        self.max_epsilon_probs = None
-        self.models = []
-        self.model_idx = None
-        self.attack_idx = 0
-        self.input_batch_size = loader.batch_size
-        self.output_batch_size = output_batch_size
-        self.input_device = 0
-        self.output_device = 1
-        self.img_size = 299
-
-        self._load_models()
-
-    def _load_models(self):
-        for mc in self.model_cfgs:
-            # pre-load all model params into system (CPU) memory
-            cfgs = [config_from_string(x) for x in mc['models']]
-            weights = mc['weights'] if 'weights' in mc and len(mc['weights']) else None
-            ensemble = create_ensemble(cfgs, weights)
-            self.models.append(ensemble)
-
-    def _next_model(self):
-        if self.model_idx is not None:
-            self.models[self.model_idx].cpu()  # put model params back on CPU
-        self.model_idx = inc_roll(self.model_idx, len(self.models))
-        model = self.models[self.model_idx]
-        model.cuda(self.input_device)   # move model params to GPU
-        return model
-
-    def _next_attack(self, model):
-        attack_idx = np.random.choice(range(len(self.attack_cfgs)), p=self.attack_probs)
-        cfg = self.attack_cfgs[attack_idx]
-        if not 'max_epsilon' in cfg:
-            cfg['max_epsilon'] = np.random.choice(self.max_epsilons, p=self.max_epsilon_probs)
-        attack = attack_factory(model, cfg)
-        return attack
-
-    def _initialize_outputs(self):
-        with torch.cuda.device(self.output_device):
-            output_image = torch.zeros((self.output_batch_size, 3, self.img_size, self.img_size)).cuda()
-            output_true_target = torch.zeros((self.output_batch_size,)).long().cuda()
-            output_attack_target = torch.zeros((self.output_batch_size,)).long().cuda()
-            return output_image, output_true_target, output_attack_target
-
-    def _output_factor(self):
-        return max(self.input_batch_size, self.output_batch_size) // self.output_batch_size
-
-    def _input_factor(self):
-        return max(self.input_batch_size, self.output_batch_size) // self.input_batch_size
-
-    def __iter__(self):
-        images, true_target, attack_target = self._initialize_outputs()
-        output_ready = False
-        out_idx = 0
-        model = self._next_model()
-        attack = self._next_attack(model)
-        for i, (input, target) in enumerate(self.loader):
-            input = input.cuda(self.input_device)
-            target = target.cuda(self.input_device)
-            in_idx = 0
-            for j in range(self._output_factor()):
-                # copy unperturbed samples from input to output
-                num_u = self.input_batch_size // 2
-                print(num_u, input.size(), images.size())
-                images[out_idx:out_idx + num_u, :, :, :] = input[in_idx:in_idx + num_u, :, :, :]
-                true_target[out_idx:out_idx + num_u] = target[in_idx:in_idx + num_u]
-                attack_target[out_idx:out_idx + num_u] = target[in_idx:in_idx + num_u]
-                out_idx += num_u
-                in_idx += num_u
-
-                # compute perturbed samples for current attack and copy to output
-                num_p = self.input_batch_size - num_u
-
-                perturbed, adv_targets = attack(
-                    input[in_idx:in_idx + num_p, :, :, :],
-                    target[in_idx:in_idx + num_p],
-                    batch_idx=i,
-                    deadline_time=None)
-                if adv_targets is None:
-                    adv_targets = target[in_idx:in_idx + num_p]
-
-                images[out_idx:out_idx + num_p, :, :, :] = perturbed
-                true_target[out_idx:out_idx + num_p] = target[in_idx:in_idx + num_p]
-                attack_target[out_idx:out_idx + num_p] = adv_targets
-                out_idx += num_p
-                in_idx += num_p
-
-                if out_idx == self.output_batch_size:
-                    output_ready = True
+                if self.shutdown:
                     break
 
-                assert in_idx <= input.size(0)
+            # flush
+        self.done_evt.wait()
 
-            if output_ready:
-                #FIXME I think we need a process/mult-thread break in this looop, too much wait time
-                #and gpu inactivity, surprise surprise
-                #print(images.mean(), true_target, attack_target)
+    def shutdown(self):
+        self.shutdown = True
+        self.done_evt.set()
 
-                yield images, true_target, attack_target
-                images, true_target, attack_target = self._initialize_outputs()
-                output_ready = False
-                out_idx = 0
-                model = self._next_model()
-                del attack
-                attack = self._next_attack(model)
+    def __iter__(self):
+        while True:
+            input, true_target, adv_target = self.queue.get()
+            yield input, true_target, adv_target
 
     def __len__(self):
-        return len(self.loader) * self._input_factor()
+        return len(self.dataset)
+
+
 
 
 def main():
     args = parser.parse_args()
 
     defense_models = ['adv_inception_resnet_v2', 'dpn68b_extra']
-
     defense_cfgs = [config_from_string(s) for s in defense_models]
     #defense_ensemble = create_ensemble(defense_cfgs, None)
 
@@ -323,7 +216,11 @@ def main():
         batch_size=args.batch_size, shuffle=True,
         num_workers=args.workers, pin_memory=True)
 
-    attack_ensemble = AttackEnsemble(train_loader, output_batch_size=16)
+    if args.mp:
+        adv_dataset = AdversarialGenerator(train_loader, output_batch_size=16)
+        adv_dataset = Q(adv_dataset)
+    else:
+        adv_dataset = AdversarialGenerator(train_loader, output_batch_size=16)
 
     val_dataset = datasets.ImageFolder(val_dir, transforms.Compose([
             transforms.Scale(int(math.floor(args.img_size / 0.875))),
@@ -343,10 +240,12 @@ def main():
         adjust_learning_rate(args.lr, optimizer, epoch, decay_epochs=args.decay_epochs)
 
         # train for one epoch
-        train(args, attack_ensemble, defense_ensemble, criterion, optimizer, epoch)
+        train(args, adv_dataset, defense_ensemble, criterion, optimizer, epoch)
 
         # evaluate on validation set
         prec1 = validate(args, val_loader, defense_ensemble, criterion)
+
+        #FIXME run another validation on all adversarial examples?
 
         # remember best prec@1 and save checkpoint
         is_best = prec1 > best_prec1
@@ -383,13 +282,6 @@ class AverageMeter(object):
         self.sum += val * n
         self.count += n
         self.avg = self.sum / self.count
-
-
-def inc_roll(index, length=1):
-    if index is None:
-        return 0
-    else:
-        return (index + 1) % length
 
 
 def adjust_learning_rate(initial_lr, optimizer, epoch, decay_epochs=30):
