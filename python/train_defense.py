@@ -14,6 +14,7 @@ from torchvision import utils
 from models import create_ensemble, create_model
 from models.model_configs import config_from_string
 from adversarial_generator import AdversarialGenerator
+from mp_feeder import MpFeeder
 
 parser = argparse.ArgumentParser(description='PyTorch ImageNet Training')
 parser.add_argument('data', metavar='DIR',
@@ -146,43 +147,6 @@ def validate(args, val_loader, model, criterion):
     return top1.avg
 
 
-class Q:
-    def __init__(self, dataset):
-        self.queue = mp.Queue()
-        self.done_evt = mp.Event()
-        self.dataset = dataset
-        self.shutdown = False
-        self.process = mp.Process(target=self._run)
-        self.process.start()
-
-    def _run(self):
-        while self.running:
-            for i, (input, true_target, adv_target) in enumerate(self.dataset):
-                # measure data loading time
-
-                self.queue.put((input, true_target, adv_target))
-
-                if self.shutdown:
-                    break
-
-            # flush
-        self.done_evt.wait()
-
-    def shutdown(self):
-        self.shutdown = True
-        self.done_evt.set()
-
-    def __iter__(self):
-        while True:
-            input, true_target, adv_target = self.queue.get()
-            yield input, true_target, adv_target
-
-    def __len__(self):
-        return len(self.dataset)
-
-
-
-
 def main():
     args = parser.parse_args()
 
@@ -216,11 +180,9 @@ def main():
         batch_size=args.batch_size, shuffle=True,
         num_workers=args.workers, pin_memory=True)
 
+    adv_dataset = AdversarialGenerator(train_loader, output_batch_size=16)
     if args.mp:
-        adv_dataset = AdversarialGenerator(train_loader, output_batch_size=16)
-        adv_dataset = Q(adv_dataset)
-    else:
-        adv_dataset = AdversarialGenerator(train_loader, output_batch_size=16)
+        adv_dataset = MpFeeder(adv_dataset, maxsize=4)
 
     val_dataset = datasets.ImageFolder(val_dir, transforms.Compose([
             transforms.Scale(int(math.floor(args.img_size / 0.875))),
@@ -259,6 +221,10 @@ def main():
             },
             is_best,
             filename='checkpoint-%d.pth.tar' % epoch)
+
+    if args.mp:
+        adv_dataset.shutdown()
+        adv_dataset.done()
 
 
 def save_checkpoint(state, is_best, filename='checkpoint.pth.tar'):
