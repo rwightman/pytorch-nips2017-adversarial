@@ -14,7 +14,7 @@ class SingleUniversalExperiment(AttackExperiment):
         self.npy_file = npy_file
 
     def get_name(self):
-        experiment_name = 'universal_{}'.format(self.npy_file)
+        experiment_name = 'eps{}_universal_{}'.format(self.max_epsilon, self.npy_file)
 
         return experiment_name
 
