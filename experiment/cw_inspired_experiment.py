@@ -41,7 +41,7 @@ class CWInspiredExperiment(AttackExperiment):
         self.initial_w_matrix = initial_w_matrix
 
     def get_name(self):
-        experiment_name = 'cw_inspired_'
+        experiment_name = 'eps{}_cw_inspired_'.format(self.max_epsilon)
         for model, weight in zip(self.ensemble, self.ensemble_weights):
             experiment_name = '{}{}{}'.format(experiment_name, model, weight)
 
