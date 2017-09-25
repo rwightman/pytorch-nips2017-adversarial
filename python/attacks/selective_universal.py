@@ -7,11 +7,14 @@ import torch.autograd as autograd
 import torch.utils.data as data
 import torchvision.transforms as transforms
 
+from processing import Mirror
+
 class SelectiveUniversal(object):
     def __init__(self,
                  max_epsilon,
                  target_ensemble,
-                 w_matrix_files):
+                 w_matrix_files,
+                 try_mirrors=False):
         super(SelectiveUniversal, self).__init__()
         self.max_epsilon = max_epsilon
         self.target_ensemble = target_ensemble
@@ -19,6 +22,12 @@ class SelectiveUniversal(object):
         self.nllloss = torch.nn.NLLLoss().cuda()
 
         self.w_matrices = [torch.tanh(torch.FloatTensor((np.load(f))).cuda()) for f in self.w_matrix_files]
+        if try_mirrors:
+            self.mirrors = [lambda x: x, Mirror()]
+            self.is_mirror = [False, True]
+        else:
+            self.mirrors = [lambda x: x]
+            self.is_mirror = [False]
 
     def __call__(self, input, target, batch_idx, deadline_time):
         eps = self.max_epsilon / 255.0
@@ -37,16 +46,21 @@ class SelectiveUniversal(object):
         best_loss = 9999.0
         best_w_id = -1
         best_perturbed = None
+        best_is_mirrored = False
+
         for w_id, w_matrix in enumerate(self.w_matrices):
             w_matrix_var = autograd.Variable(w_matrix, requires_grad=False)
-            perturbed = input_var + eps * w_matrix_var
-            clamped = torch.clamp(perturbed, 0.0, 1.0)
-            log_probs_perturbed_var = self.target_ensemble(clamped)
-            loss = -self.nllloss(log_probs_perturbed_var, target=pred_class).data.cpu().numpy()
-            if loss < best_loss:
-                best_loss = loss
-                best_w_id = w_id
-                best_perturbed = clamped.data.cpu().numpy()
+
+            for func, is_mirrored in zip(self.mirrors, self.is_mirror):
+                perturbed = input_var + func(eps * w_matrix_var)
+                clamped = torch.clamp(perturbed, 0.0, 1.0)
+                log_probs_perturbed_var = self.target_ensemble(clamped)
+                loss = -self.nllloss(log_probs_perturbed_var, target=pred_class).data.cpu().numpy()
+                if loss < best_loss:
+                    best_loss = loss
+                    best_w_id = w_id
+                    best_perturbed = clamped.data.cpu().numpy()
+                    best_is_mirrored = is_mirrored
 
         return np.transpose(best_perturbed, axes=(0, 2, 3, 1)), None
 

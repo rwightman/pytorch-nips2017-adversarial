@@ -20,32 +20,45 @@ parser = argparse.ArgumentParser(description='No description')
 parser.add_argument('--name', type=str, help='Name of json file')
 parser.add_argument('--type', type=str, help='targeted_attack, attack, or defense')
 
-def deploy_attack(cfg, dont_tar=False):
-    run_template_path = os.path.join('../python/attacks', 'run_attack.sh.template')
-    metadata_template_path = os.path.join('../python/attacks', 'metadata.json.template')
-
-    name = cfg['name']
-    attack_type = cfg['attack_type']
-    run_cmd = cfg['run_cmd']
-
-    if 'runargs' in cfg:
-        runargs = cfg['runargs']
-    else:
-        runargs = []
-
-    deployment_path = os.path.join(DEPLOYMENT_DIR, 'targeted_attacks' if attack_type == 'targeted_attack' else 'attacks', name)
-    if os.path.exists(deployment_path):
-        shutil.rmtree(deployment_path)
-    os.makedirs(deployment_path)
-
+def copy_assets(cfg, deployment_path):
     if 'ensemble' in cfg:
         ensemble = cfg['ensemble']
-        ensemble_weights = cfg['ensemble_weights']
 
         checkpoint_paths = [config_from_string(m)['checkpoint_file'] for m in ensemble]
         checkpoints_to_copy = [os.path.join(CHECKPOINT_DIR, cp) for cp in checkpoint_paths]
         for cp_src, cp_dst in zip(checkpoints_to_copy, checkpoint_paths):
             shutil.copy(cp_src, os.path.join(deployment_path, cp_dst))
+
+    if 'npy_file' in cfg:
+        shutil.copy(
+            os.path.join('../data/univ/', cfg['npy_file']),
+            os.path.join(deployment_path, 'python', cfg['npy_file'])
+        )
+
+    if 'npy_files' in cfg:
+        npy_files = [os.path.join('python', f) for f in cfg['npy_files']]
+        for src_file, dst_file in zip(cfg['npy_files'], npy_files):
+            shutil.copy(
+                os.path.join('../data/univ/',src_file),
+                os.path.join(deployment_path, dst_file)
+            )
+
+    if 'checkpoints_to_copy' in cfg:
+        checkpoint_paths = [config_from_string(m)['checkpoint_file'] for m in cfg['checkpoints_to_copy']]
+        checkpoints_to_copy = [os.path.join(CHECKPOINT_DIR, cp) for cp in checkpoint_paths]
+        for cp_src, cp_dst in zip(checkpoints_to_copy, checkpoint_paths):
+            shutil.copy(cp_src, os.path.join(deployment_path, cp_dst))
+
+def get_attack_runargs(cfg):
+    if 'runargs' in cfg:
+        runargs = cfg['runargs']
+    else:
+        runargs = []
+
+    if 'ensemble' in cfg:
+        ensemble = cfg['ensemble']
+        ensemble_weights = cfg['ensemble_weights']
+        checkpoint_paths = [config_from_string(m)['checkpoint_file'] for m in ensemble]
 
         runargs.append('--ensemble')
         runargs.extend(ensemble)
@@ -54,37 +67,68 @@ def deploy_attack(cfg, dont_tar=False):
         runargs.append('--checkpoint_paths')
         runargs.extend(checkpoint_paths)
 
-    shutil.copytree('../python', os.path.join(deployment_path, 'python'))
-
     if 'npy_file' in cfg:
         runargs.extend(['--npy_file', os.path.join('python', cfg['npy_file'])])
-        shutil.copy(
-            os.path.join('../data/univ/', cfg['npy_file']),
-            os.path.join(deployment_path, 'python', cfg['npy_file'])
-        )
 
     if 'npy_files' in cfg:
         npy_files = [os.path.join('python', f) for f in cfg['npy_files']]
         runargs.append('--npy_files')
         runargs.extend(npy_files)
-        for src_file, dst_file in zip(cfg['npy_files'], npy_files):
-            shutil.copy(
-                os.path.join('../data/univ/',src_file),
-                os.path.join(deployment_path, dst_file)
-            )
+
+    return ' '.join(runargs)
+
+
+def deploy_attack(cfg, dont_tar=False):
+    name = cfg['name']
+    attack_type = cfg['attack_type']
+
+    deployment_path = os.path.join(DEPLOYMENT_DIR, 'targeted_attacks' if attack_type == 'targeted_attack' else 'attacks', name)
+    if os.path.exists(deployment_path):
+        shutil.rmtree(deployment_path)
+    os.makedirs(deployment_path)
+
+    shutil.copytree('../python', os.path.join(deployment_path, 'python'))
+
+    if 'epsilon_dict' in cfg:
+        run_template_path = os.path.join('../python/attacks', 'epsilon_dependent.sh.template')
+
+        template_data = {
+            'run_cmd4': cfg['epsilon_dict']["4"]['run_cmd'],
+            'run_args4': get_attack_runargs(cfg['epsilon_dict']["4"]),
+            'run_cmd8': cfg['epsilon_dict']["8"]['run_cmd'],
+            'run_args8': get_attack_runargs(cfg['epsilon_dict']["8"]),
+            'run_cmd12': cfg['epsilon_dict']["12"]['run_cmd'],
+            'run_args12': get_attack_runargs(cfg['epsilon_dict']["12"]),
+            'run_cmd16': cfg['epsilon_dict']["16"]['run_cmd'],
+            'run_args16': get_attack_runargs(cfg['epsilon_dict']["16"]),
+        }
+        for eps, eps_cfg in cfg['epsilon_dict'].items():
+            copy_assets(eps_cfg, deployment_path)
+    else:
+        copy_assets(cfg, deployment_path)
+
+        run_template_path = os.path.join('../python/attacks', 'run_attack.sh.template')
+        metadata_template_path = os.path.join('../python/attacks', 'metadata.json.template')
+
+        template_data = {
+            'run_cmd': cfg['run_cmd'],
+            'run_args': get_attack_runargs(cfg)
+        }
+
+    metadata_template_path = os.path.join('../python/attacks', 'metadata.json.template')
 
     with open(run_template_path, 'r') as run_template_file:
         run_template = Template(run_template_file.read())
-        run_sh = run_template.substitute({'run_cmd': run_cmd, 'run_args': ' '.join(runargs)})
+        run_sh = run_template.substitute(template_data)
         run_sh_path = os.path.join(deployment_path, 'run_attack.sh')
 
-        with open(run_sh_path, 'w') as run_sh_file:
-            run_sh_file.write(run_sh)
+    with open(run_sh_path, 'w') as run_sh_file:
+        run_sh_file.write(run_sh)
 
-        # Otherwise submission will be invalid without execute permission
-        # Though they claim to have fixed this on their end, was necessary
-        # in rounds 1 and 2.
-        os.chmod(run_sh_path, 777)
+    # Otherwise submission will be invalid without execute permission
+    # Though they claim to have fixed this on their end, was necessary
+    # in rounds 1 and 2.
+    os.chmod(run_sh_path, 777)
 
     with open(metadata_template_path, 'r') as metadata_template_file:
         metadata_template = Template(metadata_template_file.read())
@@ -122,14 +166,14 @@ def deploy_defense(cfg, dont_tar=False):
         shutil.rmtree(deployment_path)
     os.makedirs(deployment_path)
 
+    shutil.copytree('../python', os.path.join(deployment_path, 'python'))
+
+    copy_assets(cfg, deployment_path)
+
     if 'ensemble' in cfg:
         ensemble = cfg['ensemble']
         ensemble_weights = cfg['ensemble_weights']
-
         checkpoint_paths = [config_from_string(m)['checkpoint_file'] for m in ensemble]
-        checkpoints_to_copy = [os.path.join(CHECKPOINT_DIR, cp) for cp in checkpoint_paths]
-        for cp_src, cp_dst in zip(checkpoints_to_copy, checkpoint_paths):
-            shutil.copy(cp_src, os.path.join(deployment_path, cp_dst))
 
         runargs.append('--ensemble')
         runargs.extend(ensemble)
@@ -137,15 +181,6 @@ def deploy_defense(cfg, dont_tar=False):
         runargs.extend(ensemble_weights)
         runargs.append('--checkpoint_paths')
         runargs.extend(checkpoint_paths)
-
-
-    if 'checkpoints_to_copy' in cfg:
-        checkpoint_paths = [config_from_string(m)['checkpoint_file'] for m in cfg['checkpoints_to_copy']]
-        checkpoints_to_copy = [os.path.join(CHECKPOINT_DIR, cp) for cp in checkpoint_paths]
-        for cp_src, cp_dst in zip(checkpoints_to_copy, checkpoint_paths):
-            shutil.copy(cp_src, os.path.join(deployment_path, cp_dst))
-
-    shutil.copytree('../python', os.path.join(deployment_path, 'python'))
 
     with open(run_template_path, 'r') as run_template_file:
         run_template = Template(run_template_file.read())
