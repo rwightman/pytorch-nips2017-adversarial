@@ -4,8 +4,8 @@ import torch.utils.data
 import torch.multiprocessing as mp
 #import multiprocessing as mp
 try:
-    mp.set_sharing_strategy('file_system')
-    mp.set_start_method('forkserver')
+    #mp.set_sharing_strategy('file_system')
+    mp.set_start_method('spawn')
 except RuntimeError:
     pass
 
@@ -62,12 +62,9 @@ class TestDataset():
         self.img_size = (3, 64, 64)
 
     def __getitem__(self, index):
-        img = torch.rand(self.img_size).cuda(1)
-        true_target = torch.LongTensor([index]).cuda(1)
-        adv_target = torch.LongTensor([index]).cuda(1)
-        # img.share_memory_()
-        # true_target.share_memory_()
-        # adv_target.share_memory_()
+        img = torch.rand(self.img_size).cuda()
+        true_target = torch.LongTensor([index]).cuda()
+        adv_target = torch.LongTensor([index]).cuda()
         return img, true_target, adv_target
 
     def __len__(self):
@@ -75,8 +72,6 @@ class TestDataset():
 
 
 def test():
-
-
     test_dataset = TestDataset()
 
     loader = torch.utils.data.DataLoader(test_dataset, batch_size=8, shuffle=False)

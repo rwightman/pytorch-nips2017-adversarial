@@ -66,9 +66,12 @@ def train(args, train_loader, model, criterion, optimizer, epoch):
         # measure data loading time
         data_time.update(time.time() - end)
 
+        input = input.cuda()
+        target = target.cuda()
         input_var = torch.autograd.Variable(input)
         target_var = torch.autograd.Variable(target)
 
+        #print(i, target_var.data)
         #utils.save_image(input_var.data, '%d-input.jpg' % i, padding=0)
 
         # compute output
@@ -115,6 +118,8 @@ def validate(args, val_loader, model, criterion):
 
     end = time.time()
     for i, (input, target) in enumerate(val_loader):
+        input = input.cuda()
+        target = target.cuda()
         input_var = torch.autograd.Variable(input, volatile=True)
         target_var = torch.autograd.Variable(target, volatile=True)
 
@@ -150,23 +155,6 @@ def validate(args, val_loader, model, criterion):
 def main():
     args = parser.parse_args()
 
-    defense_models = ['adv_inception_resnet_v2', 'dpn68b_extra']
-    defense_cfgs = [config_from_string(s) for s in defense_models]
-    #defense_ensemble = create_ensemble(defense_cfgs, None)
-
-    #FIXME stick with one known model for now to test
-    defense_ensemble = create_model(
-        'inception_v3', num_classes=1001, aux_logits=False, checkpoint_path='inception_v3_rw.pth',
-        normalizer='le', output_fn='log_softmax', drop_first_class=True)
-
-    defense_ensemble.cuda(1)
-
-    optimizer = torch.optim.SGD(
-        defense_ensemble.parameters(),
-        args.lr,
-        momentum=args.momentum,
-        weight_decay=args.weight_decay)
-
     train_dir = os.path.join(args.data, 'train')
     val_dir = os.path.join(args.data, 'validation')
 
@@ -180,9 +168,9 @@ def main():
         batch_size=args.batch_size, shuffle=True,
         num_workers=args.workers, pin_memory=True)
 
-    adv_dataset = AdversarialGenerator(train_loader, output_batch_size=16)
+    adv_dataset = AdversarialGenerator(train_loader, output_batch_size=args.batch_size)
     if args.mp:
-        adv_dataset = MpFeeder(adv_dataset, maxsize=4)
+        adv_dataset = MpFeeder(adv_dataset, maxsize=8)
 
     val_dataset = datasets.ImageFolder(val_dir, transforms.Compose([
             transforms.Scale(int(math.floor(args.img_size / 0.875))),
@@ -195,32 +183,50 @@ def main():
         batch_size=args.batch_size, shuffle=False,
         num_workers=args.workers, pin_memory=True)
 
-    criterion = torch.nn.NLLLoss().cuda(1)
+    with torch.cuda.device(1):
+        defense_models = ['adv_inception_resnet_v2', 'dpn68b_extra']
+        defense_cfgs = [config_from_string(s) for s in defense_models]
+        # defense_ensemble = create_ensemble(defense_cfgs, None)
 
-    best_prec1 = 0
-    for epoch in range(args.start_epoch, args.epochs):
-        adjust_learning_rate(args.lr, optimizer, epoch, decay_epochs=args.decay_epochs)
+        # FIXME stick with one known model for now to test
+        defense_ensemble = create_model(
+            'dpn68b', num_classes=1000, checkpoint_path='dpn68_extra.pth',
+            normalizer='dpn', output_fn='log_softmax', drop_first_class=False)
 
-        # train for one epoch
-        train(args, adv_dataset, defense_ensemble, criterion, optimizer, epoch)
+        defense_ensemble.cuda()
 
-        # evaluate on validation set
-        prec1 = validate(args, val_loader, defense_ensemble, criterion)
+        optimizer = torch.optim.SGD(
+            defense_ensemble.parameters(),
+            args.lr,
+            momentum=args.momentum,
+            weight_decay=args.weight_decay)
 
-        #FIXME run another validation on all adversarial examples?
+        criterion = torch.nn.NLLLoss().cuda()
 
-        # remember best prec@1 and save checkpoint
-        is_best = prec1 > best_prec1
-        best_prec1 = max(prec1, best_prec1)
-        save_checkpoint({
-                'epoch': epoch + 1,
-                'arch': 'FIXME',
-                'state_dict': defense_ensemble.state_dict(),
-                'best_prec1': best_prec1,
-                'optimizer': optimizer.state_dict(),
-            },
-            is_best,
-            filename='checkpoint-%d.pth.tar' % epoch)
+        best_prec1 = 0
+        for epoch in range(args.start_epoch, args.epochs):
+            adjust_learning_rate(args.lr, optimizer, epoch, decay_epochs=args.decay_epochs)
+
+            # train for one epoch
+            train(args, adv_dataset, defense_ensemble, criterion, optimizer, epoch)
+
+            # evaluate on validation set
+            prec1 = validate(args, val_loader, defense_ensemble, criterion)
+
+            #FIXME run another validation on all adversarial examples?
+
+            # remember best prec@1 and save checkpoint
+            is_best = prec1 > best_prec1
+            best_prec1 = max(prec1, best_prec1)
+            save_checkpoint({
+                    'epoch': epoch + 1,
+                    'arch': 'FIXME',
+                    'state_dict': defense_ensemble.state_dict(),
+                    'best_prec1': best_prec1,
+                    'optimizer': optimizer.state_dict(),
+                },
+                is_best,
+                filename='checkpoint-%d.pth.tar' % epoch)
 
     if args.mp:
         adv_dataset.shutdown()

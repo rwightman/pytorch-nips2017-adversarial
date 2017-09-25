@@ -55,6 +55,7 @@ class AdversarialGenerator:
         self.output_batch_size = output_batch_size
         self.input_device = 0
         self.output_device = 1
+        self.normal_sample_ratio = 0.5
         self.img_size = 299
 
         self._load_models()
@@ -84,31 +85,31 @@ class AdversarialGenerator:
         return attack
 
     def _initialize_outputs(self):
-        with torch.cuda.device(self.output_device):
-            output_image = torch.zeros((self.output_batch_size, 3, self.img_size, self.img_size)).cuda()
-            output_true_target = torch.zeros((self.output_batch_size,)).long().cuda()
-            output_attack_target = torch.zeros((self.output_batch_size,)).long().cuda()
-            return output_image, output_true_target, output_attack_target
+        #with torch.cuda.device(self.output_device):
+        output_image = torch.zeros((self.output_batch_size, 3, self.img_size, self.img_size)) #.cuda()
+        output_true_target = torch.zeros((self.output_batch_size,)).long() #.cuda()
+        output_attack_target = torch.zeros((self.output_batch_size,)).long() #.cuda()
+        return output_image, output_true_target, output_attack_target
 
-    def _output_factor(self):
-        return max(self.input_batch_size, self.output_batch_size) // self.output_batch_size
+    def _output_factor(self, curr_batch_size=None):
+        return max(curr_batch_size or self.input_batch_size, self.output_batch_size) // self.output_batch_size
 
     def _input_factor(self):
         return max(self.input_batch_size, self.output_batch_size) // self.input_batch_size
 
     def __iter__(self):
         images, true_target, attack_target = self._initialize_outputs()
-        output_ready = False
         out_idx = 0
         model = self._next_model()
         attack = self._next_attack(model)
         for i, (input, target) in enumerate(self.loader):
             input = input.cuda(self.input_device)
             target = target.cuda(self.input_device)
+            curr_input_batch_size = input.size(0)
             in_idx = 0
-            for j in range(self._output_factor()):
+            for j in range(self._output_factor(curr_input_batch_size)):
                 # copy unperturbed samples from input to output
-                num_u = self.input_batch_size // 2
+                num_u = round(curr_input_batch_size * self.normal_sample_ratio)
                 print(num_u, input.size(), images.size())
                 images[out_idx:out_idx + num_u, :, :, :] = input[in_idx:in_idx + num_u, :, :, :]
                 true_target[out_idx:out_idx + num_u] = target[in_idx:in_idx + num_u]
@@ -117,7 +118,7 @@ class AdversarialGenerator:
                 in_idx += num_u
 
                 # compute perturbed samples for current attack and copy to output
-                num_p = self.input_batch_size - num_u
+                num_p = curr_input_batch_size - num_u
 
                 perturbed, adv_targets = attack(
                     input[in_idx:in_idx + num_p, :, :, :],
@@ -133,24 +134,23 @@ class AdversarialGenerator:
                 out_idx += num_p
                 in_idx += num_p
 
-                if out_idx == self.output_batch_size:
-                    output_ready = True
-                    break
-
+                assert out_idx <= self.output_batch_size
                 assert in_idx <= input.size(0)
 
-            if output_ready:
-                #FIXME I think we need a process/mult-thread break in this looop, too much wait time
-                #and gpu inactivity, surprise surprise
-                #print(images.mean(), true_target, attack_target)
+                if out_idx >= self.output_batch_size:
+                    break
 
+            if out_idx == self.output_batch_size:
                 yield images, true_target, attack_target
                 images, true_target, attack_target = self._initialize_outputs()
-                output_ready = False
                 out_idx = 0
                 model = self._next_model()
                 del attack
                 attack = self._next_attack(model)
+
+        if out_idx != self.output_batch_size:
+            print('Output truncated last bach (%d)' % out_idx)
+            yield images[:out_idx, :, :, :], true_target[:out_idx], attack_target[:out_idx]
 
     def __len__(self):
         return len(self.loader) * self._input_factor()
