@@ -62,5 +62,5 @@ class SelectiveUniversal(object):
                     best_perturbed = clamped.data.cpu().numpy()
                     best_is_mirrored = is_mirrored
 
-        return np.transpose(best_perturbed, axes=(0, 2, 3, 1)), None
+        return np.transpose(best_perturbed, axes=(0, 2, 3, 1)), None, None
 

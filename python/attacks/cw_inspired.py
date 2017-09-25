@@ -141,4 +141,4 @@ class CWInspired(object):
         final_image_tensor = input_var.data + final_change.data
         # Hygiene, math should mean this is already true
         final_image_tensor = torch.clamp(final_image_tensor, 0.0, 1.0)
-        return final_image_tensor.permute(0, 2, 3, 1), target
+        return final_image_tensor.permute(0, 2, 3, 1), target, None

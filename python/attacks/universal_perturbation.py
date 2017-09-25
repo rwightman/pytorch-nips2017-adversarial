@@ -19,4 +19,4 @@ class UniversalPerturbation(object):
         perturbed = input + eps * self.universal_perturbation
         clamped = torch.clamp(perturbed, 0.0, 1.0)
 
-        return clamped.permute(0, 2, 3, 1), target
+        return clamped.permute(0, 2, 3, 1), target, None

@@ -43,7 +43,7 @@ class ImageSaveAttackRunner:
 
             input = input.cuda()
             target = target.cuda()
-            input_adv, target_adv = attack(input, target, batch_idx, batch_deadline)
+            input_adv, target_adv, _ = attack(input, target, batch_idx, batch_deadline)
             if torch.is_tensor(input_adv):
                 input_adv = input_adv.cpu().numpy()
             if target_adv is None:
