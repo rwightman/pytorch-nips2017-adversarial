@@ -37,6 +37,8 @@ parser.add_argument('--img-size', default=299, type=int,
                     metavar='N', help='Input image dimension')
 parser.add_argument('--drop', type=float, default=0., metavar='DROP',
                     help='Dropout rate (default: 0.)')
+parser.add_argument('--opt', default='sgd', type=str,
+                    metavar='OPT', help='optimizer')
 parser.add_argument('--lr', '--learning-rate', default=0.01, type=float,
                     metavar='LR', help='initial learning rate')
 parser.add_argument('--momentum', default=0.9, type=float, metavar='M',
@@ -195,11 +197,19 @@ def main():
 
         defense_ensemble.cuda()
 
-        optimizer = torch.optim.SGD(
-            defense_ensemble.parameters(),
-            args.lr,
-            momentum=args.momentum,
-            weight_decay=args.weight_decay)
+        if args.opt == 'sgd':
+            optimizer = torch.optim.SGD(
+                defense_ensemble.parameters(),
+                args.lr,
+                momentum=args.momentum,
+                weight_decay=args.weight_decay)
+        elif args.opt =='adam':
+            optimizer = torch.optim.Adam(
+                defense_ensemble.parameters(),
+                args.lr,
+                weight_decay=args.weight_decay)
+        else:
+            assert False, "Invalid optimizer specified"
 
         criterion = torch.nn.NLLLoss().cuda()
 
