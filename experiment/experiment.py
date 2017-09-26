@@ -45,7 +45,7 @@ class AttackExperiment(Experiment):
         if not os.path.exists(output_dir):
             print('Running experiment: {}'.format(experiment_name))
 
-            deployment_path = deploy.deploy_attack(cfg, dont_tar=True)
+            deployment_path = self.deploy()
 
             internal_cmd = [
                 'sh', 'run_attack.sh',
@@ -75,6 +75,10 @@ class AttackExperiment(Experiment):
     def get_name(self):
         return super(AttackExperiment, self).get_name()
 
+    def deploy(self):
+        cfg = self.get_cfg()
+        deployment_path = deploy.deploy_attack(cfg, dont_tar=True)
+        return deployment_path
 
 class DefenseExperiment(Experiment):
     def __init__(self, attack_type, attack_name):

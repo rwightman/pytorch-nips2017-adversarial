@@ -14,21 +14,21 @@ INPUT_DIR=$$1
 OUTPUT_DIR=$$2
 MAX_EPSILON=$$3
 
-if [ $${MAX_EPSILON} < 6 ]
+if [ $${MAX_EPSILON} -lt 6 ]
 then
   python python/${run_cmd4}.py \
   --input_dir="$${INPUT_DIR}" \
   --output_dir="$${OUTPUT_DIR}" \
   --max_epsilon="$${MAX_EPSILON}" \
   $run_args4
-elif [ $${MAX_EPSILON} < 10]
+elif [ $${MAX_EPSILON} -lt 10 ]
 then
     python python/${run_cmd8}.py \
   --input_dir="$${INPUT_DIR}" \
   --output_dir="$${OUTPUT_DIR}" \
   --max_epsilon="$${MAX_EPSILON}" \
   $run_args8
-elif [ $${MAX_EPSILON} < 14]
+elif [ $${MAX_EPSILON} -lt 14 ]
 then
     python python/${run_cmd12}.py \
   --input_dir="$${INPUT_DIR}" \
