@@ -36,20 +36,24 @@ class ImageSaveAttackRunner:
         time_limit = self.time_limit_per_100 * ((len(self.dataset) - 1) // 100 + 1)
         time_limit_per_batch = time_limit / len(loader)
         batch_time = AverageMeter()
-
         batch_start = time.time()
+
+        reports_returned = []
+
         for batch_idx, (input, target) in enumerate(loader):
             batch_deadline = batch_start + time_limit_per_batch
 
             input = input.cuda()
             target = target.cuda()
-            input_adv, target_adv, _ = attack(input, target, batch_idx, batch_deadline)
+            input_adv, target_adv, report = attack(input, target, batch_idx, batch_deadline)
+
             if torch.is_tensor(input_adv):
                 input_adv = input_adv.cpu().numpy()
             if target_adv is None:
                 target_adv = target.cpu().numpy()
             elif torch.is_tensor(target_adv):
                 target_adv = target_adv.cpu().numpy()
+            reports_returned.append(report)
 
             start_index = batch_size * batch_idx
             indices = list(range(start_index, start_index + input.size(0)))
@@ -81,6 +85,8 @@ class ImageSaveAttackRunner:
                 break
             time_limit_per_batch = min(time_limit - total_elapsed, time_limit_per_batch)
             batch_start = time.time()
+
+        return reports_returned
 
 
 class AverageMeter(object):
