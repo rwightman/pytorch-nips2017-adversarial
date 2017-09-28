@@ -68,8 +68,14 @@ def train(args, train_loader, model, criterion, optimizer, epoch):
         # measure data loading time
         data_time.update(time.time() - end)
 
-        #input = input.cuda()
-        #target = target.cuda()
+        if not input.is_cuda:
+            input = input.cuda()
+        if not target.is_cuda:
+            target = target.cuda()
+        if True:
+            idx_perm = torch.randperm(input.size(0)).cuda()
+            input = input[idx_perm, :, :, :]
+            target = target[idx_perm]
         input_var = torch.autograd.Variable(input)
         target_var = torch.autograd.Variable(target)
 
