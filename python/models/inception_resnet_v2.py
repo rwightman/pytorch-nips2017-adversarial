@@ -265,17 +265,25 @@ class InceptionResnetV2(nn.Module):
         )
         self.block8 = Block8(noReLU=True)
         self.conv2d_7b = BasicConv2d(2080, 1536, kernel_size=1, stride=1)
-        #self.avgpool_1a = nn.AvgPool2d(8, count_include_pad=False)
+        self.num_features = 1536
         self.classif = nn.Linear(1536 * pooling_factor(global_pool), num_classes)
 
-    def get_fc(self):
+    def get_classifier(self):
         return self.classif
 
-    def reset_fc(self, num_classes, global_pool='avg'):
+    def reset_classifier(self, num_classes, global_pool='avg'):
         self.global_pool = global_pool
         self.classif = torch.nn.Linear(1536 * pooling_factor(global_pool), num_classes)
 
     def forward(self, x):
+        x = self.forward_features(x, pool=True)
+        x = x.view(x.size(0), -1)
+        if self.drop_rate > 0:
+            x = F.dropout(x, p=self.drop_rate, training=self.training)
+        x = self.classif(x)
+        return x
+
+    def forward_features(self, x, pool=False):
         x = self.conv2d_1a(x)
         x = self.conv2d_2a(x)
         x = self.conv2d_2b(x)
@@ -291,12 +299,12 @@ class InceptionResnetV2(nn.Module):
         x = self.repeat_2(x)
         x = self.block8(x)
         x = self.conv2d_7b(x)
-        x = adaptive_avgmax_pool2d(x, self.global_pool, count_include_pad=False)
-        x = x.view(x.size(0), -1)
-        if self.drop_rate > 0:
-            x = F.dropout(x, p=self.drop_rate, training=self.training)
-        x = self.classif(x)
+        if pool:
+            x = adaptive_avgmax_pool2d(x, self.global_pool, count_include_pad=False)
         return x
+
+    def forward_classifier(self, x):
+        return self.classifier(x)
 
 
 def inception_resnet_v2(pretrained=False, num_classes=1001, **kwargs):

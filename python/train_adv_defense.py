@@ -68,8 +68,8 @@ def train(args, train_loader, model, criterion, optimizer, epoch):
         # measure data loading time
         data_time.update(time.time() - end)
 
-        input = input.cuda()
-        target = target.cuda()
+        #input = input.cuda()
+        #target = target.cuda()
         input_var = torch.autograd.Variable(input)
         target_var = torch.autograd.Variable(target)
 
@@ -157,6 +157,19 @@ def validate(args, val_loader, model, criterion):
 def main():
     args = parser.parse_args()
 
+    num_gpu = args.num_gpu
+    if num_gpu == 2:
+        input_device = 0
+        output_device = 1
+    elif num_gpu == 3:
+        input_device = [0, 1]
+        output_device = 2
+    elif num_gpu == 4:
+        input_device = [0, 1]
+        output_device = [2, 3]
+    else:
+        assert False, 'Unsupported number of gpus'
+
     train_dir = os.path.join(args.data, 'train')
     val_dir = os.path.join(args.data, 'validation')
 
@@ -170,7 +183,11 @@ def main():
         batch_size=args.batch_size, shuffle=True,
         num_workers=args.workers, pin_memory=True)
 
-    adv_dataset = AdversarialGenerator(train_loader, output_batch_size=args.batch_size)
+    adv_dataset = AdversarialGenerator(
+        train_loader,
+        output_batch_size=args.batch_size,
+        input_device=input_device,
+        output_device=output_device)
     if args.mp:
         adv_dataset = MpFeeder(adv_dataset, maxsize=8)
 
@@ -185,7 +202,8 @@ def main():
         batch_size=args.batch_size, shuffle=False,
         num_workers=args.workers, pin_memory=True)
 
-    with torch.cuda.device(1):
+    output_master_device = output_device[0] if isinstance(output_device, list) else output_device
+    with torch.cuda.device(output_master_device):
         defense_models = ['adv_inception_resnet_v2', 'dpn68b_extra']
         defense_cfgs = [config_from_string(s) for s in defense_models]
         # defense_ensemble = create_ensemble(defense_cfgs, None)
@@ -195,7 +213,10 @@ def main():
             'dpn68b', num_classes=1000, checkpoint_path='dpn68_extra.pth',
             normalizer='dpn', output_fn='log_softmax', drop_first_class=False)
 
-        defense_ensemble.cuda()
+        if isinstance(output_device, list):
+            defense_ensemble = torch.nn.DataParallel(defense_ensemble, output_device)
+        else:
+            defense_ensemble.cuda()
 
         if args.opt == 'sgd':
             optimizer = torch.optim.SGD(
@@ -210,6 +231,25 @@ def main():
                 weight_decay=args.weight_decay)
         else:
             assert False, "Invalid optimizer specified"
+
+        if args.resume:
+            if os.path.isfile(args.resume):
+                print("=> loading checkpoint '{}'".format(args.resume))
+                checkpoint = torch.load(args.resume)
+                if isinstance(checkpoint, dict) and 'state_dict' in checkpoint:
+                    args.start_epoch = checkpoint['epoch']
+                    #best_prec1 = checkpoint['best_prec1']
+                    defense_ensemble.load_state_dict(checkpoint['state_dict'])
+                    optimizer.load_state_dict(checkpoint['optimizer'])
+                    print("=> loaded checkpoint '{}' (epoch {})".format(
+                        args.resume, checkpoint['epoch']))
+                else:
+                    # load from a non-training state dict only checkpoint
+                    defense_ensemble.load_state_dict(checkpoint)
+                    print("=> loaded checkpoint '{}'".format(args.resume))
+            else:
+                print("=> no checkpoint found at '{}'".format(args.resume))
+                exit(-1)
 
         criterion = torch.nn.NLLLoss().cuda()
 

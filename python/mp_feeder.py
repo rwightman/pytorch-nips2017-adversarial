@@ -25,13 +25,14 @@ class MpFeeder:
             sys.stdout.flush()
             while not self.is_shutdown.is_set():
                 for i, (input, true_target, adv_target) in enumerate(self.dataset):
+                    torch.cuda.synchronize()
                     self.queue.put((input, true_target, adv_target))
                     if self.is_shutdown.is_set():
                         break
                 self.queue.put((None, None, None))
 
-                print("Waiting on done")
-                self.is_done.wait()
+            print("Waiting on done")
+            self.is_done.wait()
         except Exception as e:
             print("Ahhhh", str(e))
             self.queue.put((Exception(), None, None))

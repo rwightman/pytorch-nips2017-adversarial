@@ -123,7 +123,8 @@ class ResNet(nn.Module):
         self.layer3 = self._make_layer(block, 256, layers[2], stride=2, drop_rate=block_drop_rate)
         self.layer4 = self._make_layer(block, 512, layers[3], stride=2, drop_rate=block_drop_rate)
         self.global_pool = AdaptiveAvgMaxPool2d(pool_type=global_pool)
-        self.fc = nn.Linear(512 * block.expansion * self.global_pool.factor(), num_classes)
+        self.num_features = 512 * block.expansion
+        self.fc = nn.Linear(self.num_features * self.global_pool.factor(), num_classes)
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
@@ -149,10 +150,10 @@ class ResNet(nn.Module):
 
         return nn.Sequential(*layers)
 
-    def get_fc(self):
+    def get_classifier(self):
         return self.fc
 
-    def reset_fc(self, num_classes, global_pool='avg'):
+    def reset_classifier(self, num_classes, global_pool='avg'):
         self.global_pool = AdaptiveAvgMaxPool2d(pool_type=global_pool)
         self.fc = nn.Linear(512 * self.expansion * self.global_pool.factor(), num_classes)
 

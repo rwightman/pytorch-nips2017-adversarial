@@ -258,7 +258,7 @@ class DPN(nn.Module):
             blocks['conv5_' + str(i)] = DualPathBlock(in_chs, r, r, bw, inc, groups, 'normal', b)
             in_chs += inc
         blocks['conv5_bn_ac'] = CatBnAct(in_chs)
-
+        self.num_features = in_chs
         self.features = nn.Sequential(blocks)
 
         # Using 1x1 conv for the FC layer to allow the extra pooling scheme
@@ -275,3 +275,15 @@ class DPN(nn.Module):
             x = adaptive_avgmax_pool2d(x, pool_type='avg')
             out = self.classifier(x)
         return out.view(out.size(0), -1)
+
+    def forward_features(self, x, pool=False):
+        x = self.features(x)
+        if pool:
+            x = adaptive_avgmax_pool2d(x, pool_type='avg')
+        return x
+
+    def forward_classifier(self, x):
+        return self.classifier(x)
+
+    def get_classifier(self):
+        return self.classifier
