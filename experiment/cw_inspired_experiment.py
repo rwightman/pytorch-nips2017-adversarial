@@ -118,4 +118,6 @@ class CWInspiredExperiment(AttackExperiment):
 
         cfg['runargs'] = runargs
 
+        cfg['runargs'].extend(['--time_limit_per_100', str(175.0)])
+
         return cfg

@@ -33,15 +33,24 @@ class ImageSaveAttackRunner:
             batch_size=batch_size,
             shuffle=False)
 
-        time_limit = self.time_limit_per_100 * ((len(self.dataset) - 1) // 100 + 1)
-        time_limit_per_batch = time_limit / len(loader)
-        batch_time = AverageMeter()
-        batch_start = time.time()
+        batches_of_100 = len(self.dataset) / 100.0
+        print("Batches of 100: {}".format(batches_of_100))
+        print("Time limit per 100: {}".format(self.time_limit_per_100))
+        time_limit = max(batches_of_100 * self.time_limit_per_100, 1.0) # Helps pass the validation tool. Otherwise we see 0 images and therefore 0 seconds
+        print("Time remaining: {}".format(time_limit))
+
+        FINAL_DEADLINE = attack_start + time_limit
+
+        n_batches = np.ceil(len(self.dataset) / batch_size)
 
         reports_returned = []
 
         for batch_idx, (input, target) in enumerate(loader):
-            batch_deadline = batch_start + time_limit_per_batch
+            batch_start = time.time()
+            time_remaining = FINAL_DEADLINE - batch_start
+            batches_remaining = float(n_batches - batch_idx)
+            time_per_batch_remaining = time_remaining / batches_remaining
+            batch_deadline = min(batch_start + time_per_batch_remaining, FINAL_DEADLINE)
 
             input = input.cuda()
             target = target.cuda()
@@ -75,7 +84,6 @@ class ImageSaveAttackRunner:
 
             # measure elapsed time
             current = time.time()
-            batch_time.update(current - batch_start)
             total_elapsed = current - attack_start
             if total_elapsed > (time_limit - 30):
                 print("Warning: time critical, %s" % total_elapsed)
@@ -83,8 +91,6 @@ class ImageSaveAttackRunner:
                 print("Warning: breaking early at %d, time critical, %s" % (batch_idx, total_elapsed))
                 sys.stdout.flush()
                 break
-            time_limit_per_batch = min(time_limit - total_elapsed, time_limit_per_batch)
-            batch_start = time.time()
 
         return reports_returned
 

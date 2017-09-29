@@ -1,6 +1,9 @@
 import argparse
 import time
 import torch.nn as nn
+import sys
+
+import numpy as np
 
 from attacks.image_save_runner import ImageSaveAttackRunner
 from attacks.selective_universal import SelectiveUniversal
@@ -23,7 +26,7 @@ parser.add_argument('--ensemble_weights', nargs='+', type=float,
                     help='Weights for weighted geometric mean of output probs')
 parser.add_argument('--checkpoint_paths', nargs='+', help='Paths to checkpoint files for each model.')
 parser.add_argument('--try_mirrors', action='store_true', default=False)
-parser.add_argument('--time_limit_per_100', type=float, default=450)
+parser.add_argument('--time_limit_per_100', type=float, default=470)
 parser.add_argument('--no_augmentation', action='store_true', default=False,
                     help='No foveation or blurring.')
 parser.add_argument('--lr', type=float, default=0.02,
@@ -59,13 +62,21 @@ class Subset(data.Dataset):
         return self.original_dataset.filenames(indices=original_indices, basename=basename)
 
 def main():
-    start_time = time.time()
+    attack_start = time.time()
 
     args = parser.parse_args()
 
     dataset = Dataset(args.input_dir, target_file='')
 
-    time_limit = args.time_limit_per_100 * ((len(dataset) - 1) // 100 + 1)
+    batches_of_100 = len(dataset) / 100.0
+    print("Batches of 100: {}".format(batches_of_100))
+    print("Time limit per 100: {}".format(args.time_limit_per_100))
+    time_limit = max(batches_of_100 * args.time_limit_per_100,1.0)  # Helps pass the validation tool. Otherwise we see 0 images and therefore 0 seconds
+    print("Time remaining: {}".format(time_limit))
+
+    FINAL_DEADLINE = attack_start + time_limit
+
+    sys.stdout.flush()
 
     cfgs = [config_from_string(s) for s in args.ensemble]
 
@@ -79,7 +90,7 @@ def main():
         try_mirrors = args.try_mirrors
     )
 
-    runner = ImageSaveAttackRunner(dataset, args.output_dir)
+    runner = ImageSaveAttackRunner(dataset, args.output_dir, time_limit_per_100=args.time_limit_per_100)
     performance = runner.run(attack, 1)
 
     del attack
@@ -109,12 +120,15 @@ def main():
         initial_w_matrix=None
     )
 
-    ready_for_cw_inspired = time.time()
-    total_elapsed = ready_for_cw_inspired - start_time
-    time_remaining = time_limit - total_elapsed
+    time_remaining = FINAL_DEADLINE - time.time()
 
-    images_remaining = len(dataset)
-    time_remaining_per_100 = time_remaining / ((images_remaining)/100)
+    images_remaining = len(dataset2)
+    time_remaining_per_100 = time_remaining / (images_remaining / 100.0)
+
+    print("Images remaining for cw_inspired: {}".format(images_remaining))
+    print("Time remaining: {}".format(time_remaining))
+    print("Time remaining per 100: {}".format(time_remaining_per_100))
+    sys.stdout.flush()
 
     runner = ImageSaveAttackRunner(dataset2, args.output_dir, time_limit_per_100=time_remaining_per_100)
     runner.run(attack, args.batch_size)
