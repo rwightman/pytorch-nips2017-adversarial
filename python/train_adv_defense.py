@@ -220,7 +220,7 @@ def main():
             normalizer='dpn', output_fn='log_softmax', drop_first_class=False)
 
         if isinstance(output_device, list):
-            defense_ensemble = torch.nn.DataParallel(defense_ensemble, output_device)
+            defense_ensemble = torch.nn.DataParallel(defense_ensemble, output_device).cuda()
         else:
             defense_ensemble.cuda()
 

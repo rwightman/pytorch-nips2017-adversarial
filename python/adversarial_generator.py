@@ -53,6 +53,7 @@ class AdversarialGenerator:
         self.attack_idx = 0
         self.input_batch_size = loader.batch_size
         self.output_batch_size = output_batch_size
+        self.master_input_device = input_device[0] if isinstance(input_device, list) else input_device
         self.input_device = input_device
         self.output_device = output_device[0] if isinstance(output_device, list) else output_device
         self.normal_sample_ratio = 0.5
@@ -125,8 +126,8 @@ class AdversarialGenerator:
                 num_p = curr_input_batch_size - num_u
 
                 perturbed, adv_targets = attack(
-                    input[in_idx:in_idx + num_p, :, :, :].cuda(self.input_device),
-                    target[in_idx:in_idx + num_p].cuda(self.input_device),
+                    input[in_idx:in_idx + num_p, :, :, :].cuda(self.master_input_device),
+                    target[in_idx:in_idx + num_p].cuda(self.master_input_device),
                     batch_idx=i,
                     deadline_time=None)
                 if adv_targets is None:
