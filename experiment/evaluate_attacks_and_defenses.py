@@ -118,7 +118,7 @@ import pandas as pd
 df = pd.read_csv(os.path.join(output_dir, 'hit_target_class.csv'), index_col=0)
 if not np.all(df.dtypes == np.int64):
     df.replace(to_replace=['na'], value=[9999], inplace=True)
-weights = [25.8, 8.4, 2.0]
+weights = [22.8, 9.3, 2.0]
 columns = ['base_inception_v3_tf', 'base_adv_inception_resnet_v2', 'base_adv_inception_v3']
 norm_weights = [x / sum(weights) for x in weights]
 weighted_score = np.array(sum([w * df[c].astype(np.float) for w, c in zip(norm_weights, columns)]),dtype=np.int)
@@ -129,7 +129,7 @@ out_series.to_csv(os.path.join(output_dir, 'hit_target_class_weighted.csv'))
 df = pd.read_csv(os.path.join(output_dir, 'accuracy_on_attacks.csv'), index_col=0)
 if not np.all(df.dtypes == np.int64):
     df.replace(to_replace=['na'], value=[9999], inplace=True)
-weights = [31.4, 8.1, 6.3]
+weights = [30.23, 9.2, 13.4]
 columns = ['base_inception_v3_tf', 'base_adv_inception_resnet_v2', 'base_adv_inception_v3']
 norm_weights = [x / sum(weights) for x in weights]
 weighted_score = np.array(sum([w * df[c].astype(np.float) for w, c in zip(norm_weights, columns)]),dtype=np.int)
