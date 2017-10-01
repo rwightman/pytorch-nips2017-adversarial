@@ -39,7 +39,8 @@ class MetaOptimizer(nn.Module):
         self.meta_model.copy_params_from(model)
 
         if keep_states:
-            self.hidden = Variable(self.hidden.data)
+            self.hidden = (Variable(self.hidden[0].data),
+                           Variable(self.hidden[1].data))
         else:
             self.hidden = self.init_hidden()
 
