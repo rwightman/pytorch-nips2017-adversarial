@@ -5,11 +5,12 @@ from collections import OrderedDict
 
 
 def multi_loss(output, target, target_adv=None, is_adv=None, criterion=nn.NLLLoss().cuda()):
-    loss = criterion(output['class_true'], target)
-    if 'class_adv' in output and target_adv is not None:
-        loss += 0.1 * criterion(output['class_adv'], target_adv)
-    if 'is_adv' in output and is_adv is not None:
-        loss += 0.1 * criterion(output['is_adv'], is_adv)
+    #FIXME use dicts once DataParallel supports its
+    loss = criterion(output[0], target)
+    if len(output) > 1 and target_adv is not None:
+        loss += 0.1 * criterion(output[1], target_adv)
+    if len(output) > 2 and is_adv is not None:
+        loss += 0.1 * criterion(output[2], is_adv)
     return loss
 
 
@@ -42,7 +43,9 @@ class MultiTask(nn.Module):
         if self.classif_is_adv is not None:
             output_is_adv = self.classif_is_adv(features)
             output_multi['is_adv'] = output_is_adv
-        return output_multi
+
+        #FIXME hack to make this work with current lack of dict support in data parallel
+        return tuple(output_multi.values())
 
     def classifier_params(self):
         params = []
@@ -107,7 +110,9 @@ class MultiTaskEnsemble(nn.Module):
         if self.classif_is_adv is not None:
             output_is_adv = self.classif_is_adv(output)
             output_multi['is_adv'] = output_is_adv
-        return output_multi
+
+        #FIXME hack to make this work with current lack of dict support in data parallel
+        return tuple(output_multi.values())
 
     def classifier_params(self):
         params = []

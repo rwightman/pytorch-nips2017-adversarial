@@ -91,10 +91,10 @@ def train(args, train_loader, model, criterion, optimizer, epoch):
 
         # compute output
         output = model(input_var)
-        if isinstance(output, dict):
+        if isinstance(model, ('MultiTaskEnsemble', 'MultiTask')):
             loss = multi_task.multi_loss(
                 output, target_var, target_adv_var, is_adv_var, criterion)
-            output = output['class_true']
+            output = output[0]
         else:
             loss = criterion(output, target_var)
 
@@ -240,7 +240,7 @@ def main():
             opt_params = defense_ensemble.module.classifier_params()
         else:
             defense_ensemble.cuda()
-            opt_params = defense_ensemble.parameters()
+            opt_params = defense_ensemble.classifier_params()
 
         if args.opt == 'sgd':
             optimizer = torch.optim.SGD(
