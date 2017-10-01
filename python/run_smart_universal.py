@@ -112,7 +112,7 @@ def main():
         target_model,
         augmentation,
         max_epsilon=args.max_epsilon,
-        n_iter=100,
+        n_iter=200,
         lr=args.lr,
         targeted=False,
         target_nth_highest=3,
