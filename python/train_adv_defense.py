@@ -91,7 +91,7 @@ def train(args, train_loader, model, criterion, optimizer, epoch):
 
         # compute output
         output = model(input_var)
-        if isinstance(model, ('MultiTaskEnsemble', 'MultiTask')):
+        if isinstance(output, tuple):
             loss = multi_task.multi_loss(
                 output, target_var, target_adv_var, is_adv_var, criterion)
             output = output[0]
@@ -145,7 +145,7 @@ def validate(args, val_loader, model, criterion):
 
         # compute output
         output = model(input_var)
-        if isinstance(model, ('MultiTaskEnsemble', 'MultiTask')):
+        if isinstance(isinstance(output, tuple)):
             output = output[0]
         loss = criterion(output, target_var)
 
