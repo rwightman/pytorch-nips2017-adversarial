@@ -56,6 +56,8 @@ class AdversarialGenerator:
         self.master_input_device = input_device[0] if isinstance(input_device, list) else input_device
         self.input_device = input_device
         self.output_device = output_device[0] if isinstance(output_device, list) else output_device
+        print('Input device: ', self.master_input_device, self.input_device)
+        print('Output device: ', self.output_device)
         self.normal_sample_ratio = 0.5
         self.img_size = 299
 
@@ -152,7 +154,7 @@ class AdversarialGenerator:
                     break
 
             if out_idx == self.output_batch_size:
-                yield images, target_true, target_adv
+                yield images, target_true, target_adv, is_adv
                 images, target_true, target_adv, is_adv = self._initialize_outputs()
                 out_idx = 0
                 model = self._next_model()

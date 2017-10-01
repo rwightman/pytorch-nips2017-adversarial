@@ -68,12 +68,12 @@ def train(args, train_loader, model, criterion, optimizer, epoch):
     for i, (input, target, target_adv, is_adv) in enumerate(train_loader):
         # measure data loading time
         data_time.update(time.time() - end)
-
+        print(is_adv)
         if not input.is_cuda:
             input = input.cuda()
         if not target.is_cuda:
             target = target.cuda()
-        if not is_adv.is_cuda():
+        if not is_adv.is_cuda:
             is_adv = is_adv.cuda()
 
         idx_perm = torch.randperm(input.size(0)).cuda()
@@ -229,7 +229,7 @@ def main():
         defense_ensemble = create_ensemble(defense_cfgs, None)
 
         defense_ensemble = multi_task.MultiTaskEnsemble(defense_ensemble.models, use_features=True)
-
+        
         # FIXME stick with one known model for now to test
         #defense_ensemble = create_model(
         #    'dpn68b', num_classes=1000, checkpoint_path='dpn68_extra.pth',
@@ -237,18 +237,20 @@ def main():
 
         if isinstance(output_device, list):
             defense_ensemble = torch.nn.DataParallel(defense_ensemble, output_device).cuda()
+            opt_params = defense_ensemble.module.classifier_params()
         else:
             defense_ensemble.cuda()
+            opt_params = defense_ensemble.parameters()
 
         if args.opt == 'sgd':
             optimizer = torch.optim.SGD(
-                defense_ensemble.classifier_params(),
+                opt_params,
                 args.lr,
                 momentum=args.momentum,
                 weight_decay=args.weight_decay)
         elif args.opt =='adam':
             optimizer = torch.optim.Adam(
-                defense_ensemble.parameters(),
+                opt_params,
                 args.lr,
                 weight_decay=args.weight_decay)
         else:

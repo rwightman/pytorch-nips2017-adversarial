@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 from copy import deepcopy
+from collections import OrderedDict
 
 
 def multi_loss(output, target, target_adv=None, is_adv=None, criterion=nn.NLLLoss().cuda()):
@@ -32,24 +33,24 @@ class MultiTask(nn.Module):
     def forward(self, x):
         features = self.model.forward_features(x, pool=True)
         output_true = self.model.forward_classifier(features)
-        output = {'class_true': output_true}
+        output_multi = OrderedDict({'class_true': output_true})
 
         if self.classif_adv_class is not None:
             output_adv = self.classif_adv_class(features)
-            output['class_adv'] = output_adv
+            output_multi['class_adv'] = output_adv
 
         if self.classif_is_adv is not None:
             output_is_adv = self.classif_is_adv(features)
-            output['is_adv'] = output_is_adv
-        return output
+            output_multi['is_adv'] = output_is_adv
+        return output_multi
 
     def classifier_params(self):
         params = []
-        params.append(self.model.get_classifier().parameters())
+        params += self.model.get_classifier().parameters()
         if self.classif_adv_class is not None:
-            params.append(self.classif_adv_class.parameters())
+            params += self.classif_adv_class.parameters()
         if self.classif_is_adv is not None:
-            params.append(self.classif_is_adv.parmeters())
+            params += self.classif_is_adv.parameters()
         return params
 
 
@@ -97,22 +98,22 @@ class MultiTaskEnsemble(nn.Module):
             output = self.activation_fn(output)
 
         output_true = self.classif_true_class(output)
-        output = {'class_true': output_true}
+        output_multi = OrderedDict({'class_true': output_true})
 
         if self.classif_adv_class is not None:
             output_adv = self.classif_adv_class(output)
-            output['class_adv'] = output_adv
+            output_multi['class_adv'] = output_adv
 
         if self.classif_is_adv is not None:
             output_is_adv = self.classif_is_adv(output)
-            output['is_adv'] = output_is_adv
-        return output
+            output_multi['is_adv'] = output_is_adv
+        return output_multi
 
     def classifier_params(self):
         params = []
-        params.append(self.classif_true_class.parameters())
+        params += self.classif_true_class.parameters()
         if self.classif_adv_class is not None:
-            params.append(self.classif_adv_class.parameters())
+            params += self.classif_adv_class.parameters()
         if self.classif_is_adv is not None:
-            params.append(self.classif_is_adv.parmeters())
+            params += self.classif_is_adv.parameters()
         return params

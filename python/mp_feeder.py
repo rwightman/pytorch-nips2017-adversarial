@@ -4,7 +4,7 @@ import torch.utils.data
 import torch.multiprocessing as mp
 #import multiprocessing as mp
 try:
-    #mp.set_sharing_strategy('file_system')
+    mp.set_sharing_strategy('file_system')
     mp.set_start_method('spawn')
 except RuntimeError:
     pass
@@ -24,18 +24,18 @@ class MpFeeder:
             print("Entering run loop")
             sys.stdout.flush()
             while not self.is_shutdown.is_set():
-                for i, (input, true_target, adv_target) in enumerate(self.dataset):
+                for i, element in enumerate(self.dataset):
                     torch.cuda.synchronize()
-                    self.queue.put((input, true_target, adv_target))
+                    self.queue.put(element)
                     if self.is_shutdown.is_set():
                         break
-                self.queue.put((None, None, None))
+                self.queue.put((None, None, None, None))
 
             print("Waiting on done")
             self.is_done.wait()
         except Exception as e:
             print("Ahhhh", str(e))
-            self.queue.put((Exception(), None, None))
+            self.queue.put((Exception(), None, None, None))
             self.is_shutdown.set()
             self.queue.close()
 
@@ -48,10 +48,10 @@ class MpFeeder:
 
     def __iter__(self):
         while True:
-            input, true_target, adv_target = self.queue.get()
+            output = self.queue.get()
             if input is None:
                 break
-            yield input, true_target, adv_target
+            yield output
 
     def __len__(self):
         return len(self.dataset)
