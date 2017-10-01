@@ -68,7 +68,7 @@ def train(args, train_loader, model, criterion, optimizer, epoch):
     for i, (input, target, target_adv, is_adv) in enumerate(train_loader):
         # measure data loading time
         data_time.update(time.time() - end)
-        print(is_adv)
+
         if not input.is_cuda:
             input = input.cuda()
         if not target.is_cuda:
@@ -126,6 +126,17 @@ def train(args, train_loader, model, criterion, optimizer, epoch):
                 epoch, i, len(train_loader), batch_time=batch_time,
                 data_time=data_time, loss=losses, top1=top1, top5=top5))
 
+        if i % 1000 == 0:
+            save_checkpoint({
+                     'epoch': epoch + 1,
+                     'arch': 'FIXME',
+                     'state_dict': model.state_dict(),
+                     'best_prec1': top1.avg,
+                     'optimizer': optimizer.state_dict(),
+                 },
+                 False,
+                 filename='checkpoint-%d.pth.tar' % epoch)
+ 
 
 def validate(args, val_loader, model, criterion):
     batch_time = AverageMeter()
@@ -228,7 +239,7 @@ def main():
         defense_cfgs = [config_from_string(s) for s in defense_models]
         defense_ensemble = create_ensemble(defense_cfgs, None)
 
-        defense_ensemble = multi_task.MultiTaskEnsemble(defense_ensemble.models, use_features=True)
+        defense_ensemble = multi_task.MultiTaskEnsemble(defense_ensemble.models, use_features=False)
         
         # FIXME stick with one known model for now to test
         #defense_ensemble = create_model(

@@ -5,12 +5,12 @@ from collections import OrderedDict
 
 
 def multi_loss(output, target, target_adv=None, is_adv=None, criterion=nn.NLLLoss().cuda()):
-    #FIXME use dicts once DataParallel supports its
+    #FIXME use dicts once DataParallel supports it
     loss = criterion(output[0], target)
-    if len(output) > 1 and target_adv is not None:
-        loss += 0.1 * criterion(output[1], target_adv)
-    if len(output) > 2 and is_adv is not None:
-        loss += 0.1 * criterion(output[2], is_adv)
+    #if len(output) > 1 and target_adv is not None:
+    #    loss += 0.1 * criterion(output[1], target_adv)
+    if len(output) > 1 and is_adv is not None:
+        loss += 0.1 * criterion(output[1], is_adv)
     return loss
 
 
@@ -44,7 +44,7 @@ class MultiTask(nn.Module):
             output_is_adv = self.classif_is_adv(features)
             output_multi['is_adv'] = output_is_adv
 
-        #FIXME hack to make this work with current lack of dict support in data parallel
+        #FIXME hack to make this work with current lack of dict support in DataParallel
         return tuple(output_multi.values())
 
     def classifier_params(self):
@@ -63,7 +63,7 @@ class MultiTaskEnsemble(nn.Module):
             self,
             models,
             use_features=False,
-            use_adv_classif=True,
+            use_adv_classif=False,
             use_is_adv=True,
             activation_fn=torch.nn.ELU()):
         super(MultiTaskEnsemble, self).__init__()
@@ -80,8 +80,16 @@ class MultiTaskEnsemble(nn.Module):
             self.in_features = len(self.models) * self.num_classes
         self.classif_true_class = nn.Linear(self.in_features, self.num_classes)
 
+        if not use_features:
+            fact = 1. / len(self.models)
+            wc = torch.cat([torch.eye(self.num_classes, self.num_classes) * fact] * len(self.models), dim=1)
+            self.classif_true_class.weight.data = wc
+
         if use_adv_classif:
-            self.classif_adv_class = nn.Linear(self.in_features, self.num_classes)
+            if use_features:
+                self.classif_adv_class = nn.Linear(self.in_features, self.num_classes)
+            else:
+                self.classif_adv_class = deepcopy(self.classif_true_class)
         else:
             self.classif_adv_class = None
 
