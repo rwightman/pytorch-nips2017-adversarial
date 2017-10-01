@@ -54,7 +54,8 @@ class CWInspired(object):
                  targeted=False,
                  target_nth_highest=6,
                  prob_dont_augment=0.0,
-                 initial_w_matrix=None):
+                 initial_w_matrix=None,
+                 always_target=None):
         super(CWInspired, self).__init__()
         self.eps = max_epsilon / 255.0
         self.n_iter = n_iter
@@ -65,6 +66,7 @@ class CWInspired(object):
             self.initial_w_matrix = np.load(initial_w_matrix)
         else:
             self.initial_w_matrix = None
+        self.always_target = always_target
         self.perturbation_model = PerturbationNet(
             target_ensemble,
             defense_augmentation,
@@ -72,6 +74,7 @@ class CWInspired(object):
             prob_dont_augment,
         ).cuda()
         self.loss_fn = torch.nn.NLLLoss().cuda()
+
 
     def __call__(self, input, target, batch_idx, deadline_time):
         time_remaining = deadline_time - time.time()
@@ -97,12 +100,15 @@ class CWInspired(object):
 
         # Predict class
         if not self.targeted:
-            log_probs_var = self.perturbation_model(input_var)
-            log_probs = log_probs_var.data.cpu().numpy()
+            if self.always_target is not None:
+                target = torch.LongTensor(np.repeat(self.always_target,this_batch_size))
+            else:
+                log_probs_var = self.perturbation_model(input_var)
+                log_probs = log_probs_var.data.cpu().numpy()
 
-            target = torch.LongTensor(
-                np.argsort(log_probs, axis=1)[:, -self.target_nth_highest])
-            del log_probs_var
+                target = torch.LongTensor(
+                    np.argsort(log_probs, axis=1)[:, -self.target_nth_highest])
+                del log_probs_var
 
         # target came either from the loader or above
         target_var = autograd.Variable(target).cuda()
