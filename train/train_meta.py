@@ -28,7 +28,7 @@ CHECKPOINT_DIR = local_config['checkpoints_dir']
 input_dir = '/media/stuff/ImageNet/train'
 
 max_epsilon = 8.0
-batch_size = 2
+batch_size = 6
 
 ensemble = ['inception_v3_tf']
 ensemble_weights = [1.0]
@@ -94,15 +94,15 @@ ABOVE HERE NICE CODE OF MINE
 meta_model = PerturbationNet(target_model, max_epsilon, batch_size)
 meta_model.cuda()
 
-meta_optimizer = MetaOptimizer(MetaModel(meta_model), 1, 10, 10)
+meta_optimizer = MetaOptimizer(MetaModel(meta_model), 2, 5, 5)
 meta_optimizer.cuda()
 
 optimizer = optim.Adam(meta_optimizer.parameters(), lr=1e-3)
 
-MAX_EPOCH = 10
+MAX_EPOCH = 1000
 UPDATES_PER_EPOCH = 30
 OPTIMIZER_STEPS = 30
-TRUNCATED_BPTT_STEPS = 30
+TRUNCATED_BPTT_STEPS = 5
 
 for epoch in range(MAX_EPOCH):
     decrease_in_loss = 0.0
@@ -166,3 +166,4 @@ for epoch in range(MAX_EPOCH):
     print("Epoch: {}, final loss {}, average final/initial loss ratio: {}".format(epoch,
                                                                                   final_loss / UPDATES_PER_EPOCH,
                                                                                   decrease_in_loss / UPDATES_PER_EPOCH))
+    torch.save(meta_optimizer.state_dict(), 'meta_opt{}'.format(epoch))
