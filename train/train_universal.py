@@ -21,7 +21,7 @@ CHECKPOINT_DIR = local_config['checkpoints_dir']
 
 input_dir = '/media/stuff/ImageNet/train'
 
-TARGET_CLASS = 815
+TARGET_CLASS = 599
 
 max_epsilon = 8.0
 batch_size = 4
@@ -110,7 +110,8 @@ w_matrix = autograd.Variable(
 perturbation_model.set_w_matrix(w_matrix)
 optimizer = optim.Adam([w_matrix], lr=0.08)
 
-writer = SummaryWriter()
+from datetime import datetime
+writer = SummaryWriter(log_dir=os.path.join('../runs/', datetime.now().strftime('%b%d_%H-%M-%S') + '_'))
 
 n_batches_per_epoch = 100
 epoch_batch_idx = 0
