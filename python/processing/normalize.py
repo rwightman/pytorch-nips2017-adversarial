@@ -31,10 +31,6 @@ class NormalizeTorchvision(nn.Module):
 
         self.register_buffer('mean', torch.FloatTensor([0.485, 0.456, 0.406]).view(-1, 1, 1))
         self.register_buffer('std', torch.FloatTensor([0.229, 0.224, 0.225]).view(-1, 1, 1))
-        #self.mean = autograd.Variable(
-        #    torch.FloatTensor([0.485, 0.456, 0.406]).view(-1, 1, 1).cuda())
-        #self.std = autograd.Variable(
-        #    torch.FloatTensor([0.229, 0.224, 0.225]).view(-1, 1, 1).cuda())
 
     def forward(self, x):
         return (x - autograd.Variable(self.mean)) / autograd.Variable(self.std)

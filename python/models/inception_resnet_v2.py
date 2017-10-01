@@ -273,17 +273,19 @@ class InceptionResnetV2(nn.Module):
 
     def reset_classifier(self, num_classes, global_pool='avg'):
         self.global_pool = global_pool
-        self.classif = torch.nn.Linear(1536 * pooling_factor(global_pool), num_classes)
+        if num_classes:
+            self.classif = torch.nn.Linear(1536 * pooling_factor(global_pool), num_classes)
+        else:
+            self.classif = None
 
     def forward(self, x):
         x = self.forward_features(x, pool=True)
-        x = x.view(x.size(0), -1)
         if self.drop_rate > 0:
             x = F.dropout(x, p=self.drop_rate, training=self.training)
         x = self.classif(x)
         return x
 
-    def forward_features(self, x, pool=False):
+    def forward_features(self, x, pool=True):
         x = self.conv2d_1a(x)
         x = self.conv2d_2a(x)
         x = self.conv2d_2b(x)
@@ -301,6 +303,7 @@ class InceptionResnetV2(nn.Module):
         x = self.conv2d_7b(x)
         if pool:
             x = adaptive_avgmax_pool2d(x, self.global_pool, count_include_pad=False)
+            x = x.view(x.size(0), -1)
         return x
 
     def forward_classifier(self, x):

@@ -21,7 +21,7 @@ def attack_factory(model, cfg):
         attack = AttackIterative(model, **cfg)
     elif attack_name == 'cw_inspired':
         augmentation = processing.build_anp_augmentation_module()
-        augmentation = augmentation.cuda(0)
+        augmentation = augmentation.cuda()
         attack = CWInspired(model, augmentation, **cfg)
     elif attack_name == 'selective_universal':
         attack = SelectiveUniversal(model, **cfg)
@@ -83,21 +83,24 @@ class AdversarialGenerator:
 
     def _next_attack(self, model):
         attack_idx = np.random.choice(range(len(self.attack_cfgs)), p=self.attack_probs)
-        cfg = self.attack_cfgs[attack_idx]
-        if not 'max_epsilon' in cfg:
+        cfg = deepcopy(self.attack_cfgs[attack_idx])
+        if 'max_epsilon' not in cfg:
             cfg['max_epsilon'] = np.random.choice(self.max_epsilons, p=self.max_epsilon_probs)
-        attack = attack_factory(model, cfg)
+        with torch.cuda.device(self.master_input_device):
+            attack = attack_factory(model, cfg)
         return attack
 
     def _initialize_outputs(self):
         output_image = torch.zeros((self.output_batch_size, 3, self.img_size, self.img_size))
-        output_true_target = torch.zeros((self.output_batch_size,)).long()
-        output_attack_target = torch.zeros((self.output_batch_size,)).long()
+        output_target_true = torch.zeros((self.output_batch_size,)).long()
+        output_target_adv = torch.zeros((self.output_batch_size,)).long()
+        output_is_adv = torch.zeros((self.output_batch_size,)).long()
         if self.output_device is not None:
             output_image = output_image.cuda(self.output_device)
-            output_true_target = output_true_target.cuda(self.output_device)
-            output_attack_target = output_attack_target.cuda(self.output_device)
-        return output_image, output_true_target, output_attack_target
+            output_target_true = output_target_true.cuda(self.output_device)
+            output_target_adv = output_target_adv.cuda(self.output_device)
+            output_is_adv = output_is_adv.cuda(self.output_device)
+        return output_image, output_target_true, output_target_adv, output_is_adv
 
     def _output_factor(self, curr_batch_size=None):
         return max(curr_batch_size or self.input_batch_size, self.output_batch_size) // self.output_batch_size
@@ -106,7 +109,7 @@ class AdversarialGenerator:
         return max(self.input_batch_size, self.output_batch_size) // self.input_batch_size
 
     def __iter__(self):
-        images, target_true, target_attack = self._initialize_outputs()
+        images, target_true, target_adv, is_adv = self._initialize_outputs()
         out_idx = 0
         model = self._next_model()
         attack = self._next_attack(model)
@@ -118,24 +121,27 @@ class AdversarialGenerator:
                 num_u = round(curr_input_batch_size * self.normal_sample_ratio)
                 images[out_idx:out_idx + num_u, :, :, :] = input[in_idx:in_idx + num_u, :, :, :]
                 target_true[out_idx:out_idx + num_u] = target[in_idx:in_idx + num_u]
-                target_attack[out_idx:out_idx + num_u] = target[in_idx:in_idx + num_u]
+                target_adv[out_idx:out_idx + num_u] = target[in_idx:in_idx + num_u]
+                is_adv[out_idx:out_idx + num_u] = 0
                 out_idx += num_u
                 in_idx += num_u
 
                 # compute perturbed samples for current attack and copy to output
                 num_p = curr_input_batch_size - num_u
 
-                perturbed, adv_targets = attack(
-                    input[in_idx:in_idx + num_p, :, :, :].cuda(self.master_input_device),
-                    target[in_idx:in_idx + num_p].cuda(self.master_input_device),
-                    batch_idx=i,
-                    deadline_time=None)
+                with torch.cuda.device(self.master_input_device):
+                    perturbed, adv_targets = attack(
+                        input[in_idx:in_idx + num_p, :, :, :].cuda(),
+                        target[in_idx:in_idx + num_p].cuda(),
+                        batch_idx=i,
+                        deadline_time=None)
                 if adv_targets is None:
                     adv_targets = target[in_idx:in_idx + num_p]
 
                 images[out_idx:out_idx + num_p, :, :, :] = perturbed
                 target_true[out_idx:out_idx + num_p] = target[in_idx:in_idx + num_p]
-                target_attack[out_idx:out_idx + num_p] = adv_targets
+                target_adv[out_idx:out_idx + num_p] = adv_targets
+                is_adv[out_idx:out_idx + num_p] = 1
                 out_idx += num_p
                 in_idx += num_p
 
@@ -146,8 +152,8 @@ class AdversarialGenerator:
                     break
 
             if out_idx == self.output_batch_size:
-                yield images, target_true, target_attack
-                images, target_true, target_attack = self._initialize_outputs()
+                yield images, target_true, target_adv
+                images, target_true, target_adv, is_adv = self._initialize_outputs()
                 out_idx = 0
                 model = self._next_model()
                 del attack
@@ -155,7 +161,7 @@ class AdversarialGenerator:
 
         if out_idx != self.output_batch_size:
             print('Output truncated last bach (%d)' % out_idx)
-            yield images[:out_idx, :, :, :], target_true[:out_idx], target_attack[:out_idx]
+            yield images[:out_idx, :, :, :], target_true[:out_idx], target_adv[:out_idx], is_adv[:out_idx]
 
     def __len__(self):
         return len(self.loader) * self._input_factor()

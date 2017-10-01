@@ -264,6 +264,15 @@ class DPN(nn.Module):
         # Using 1x1 conv for the FC layer to allow the extra pooling scheme
         self.classifier = nn.Conv2d(in_chs, num_classes, kernel_size=1, bias=True)
 
+    def get_classifier(self):
+        return self.classif
+
+    def reset_classifier(self, num_classes):
+        if num_classes:
+            self.classif = nn.Conv2d(self.num_features, num_classes, kernel_size=1, bias=True)
+        else:
+            self.classif = None
+
     def forward(self, x):
         x = self.features(x)
         if not self.training and self.test_time_pool:
@@ -276,10 +285,11 @@ class DPN(nn.Module):
             out = self.classifier(x)
         return out.view(out.size(0), -1)
 
-    def forward_features(self, x, pool=False):
+    def forward_features(self, x, pool=True):
         x = self.features(x)
         if pool:
             x = adaptive_avgmax_pool2d(x, pool_type='avg')
+            x = x.view(x.size(0), -1)
         return x
 
     def forward_classifier(self, x):

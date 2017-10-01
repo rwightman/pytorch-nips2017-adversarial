@@ -15,6 +15,7 @@ from models import create_ensemble, create_model
 from models.model_configs import config_from_string
 from adversarial_generator import AdversarialGenerator
 from mp_feeder import MpFeeder
+from defenses import multi_task
 
 parser = argparse.ArgumentParser(description='PyTorch ImageNet Training')
 parser.add_argument('data', metavar='DIR',
@@ -64,7 +65,7 @@ def train(args, train_loader, model, criterion, optimizer, epoch):
     model.train()
 
     end = time.time()
-    for i, (input, target, _) in enumerate(train_loader):
+    for i, (input, target, target_adv, is_adv) in enumerate(train_loader):
         # measure data loading time
         data_time.update(time.time() - end)
 
@@ -72,19 +73,30 @@ def train(args, train_loader, model, criterion, optimizer, epoch):
             input = input.cuda()
         if not target.is_cuda:
             target = target.cuda()
-        if True:
-            idx_perm = torch.randperm(input.size(0)).cuda()
-            input = input[idx_perm, :, :, :]
-            target = target[idx_perm]
+        if not is_adv.is_cuda():
+            is_adv = is_adv.cuda()
+
+        idx_perm = torch.randperm(input.size(0)).cuda()
+        input = input[idx_perm, :, :, :]
+        target = target[idx_perm]
+        is_adv = is_adv[idx_perm]
+
         input_var = torch.autograd.Variable(input)
         target_var = torch.autograd.Variable(target)
+        target_adv_var = torch.autograd.Variable(target_adv)
+        is_adv_var = torch.autograd.Variable(is_adv)
 
         #print(i, target_var.data)
         #utils.save_image(input_var.data, '%d-input.jpg' % i, padding=0)
 
         # compute output
         output = model(input_var)
-        loss = criterion(output, target_var)
+        if isinstance(output, dict):
+            loss = multi_task.multi_loss(
+                output, target_var, target_adv_var, is_adv_var, criterion)
+            output = output['class_true']
+        else:
+            loss = criterion(output, target_var)
 
         # measure accuracy and record loss
         prec1, prec5 = accuracy(output.data, target, topk=(1, 5))
@@ -133,6 +145,8 @@ def validate(args, val_loader, model, criterion):
 
         # compute output
         output = model(input_var)
+        if isinstance(model, ('MultiTaskEnsemble', 'MultiTask')):
+            output = output[0]
         loss = criterion(output, target_var)
 
         # measure accuracy and record loss
@@ -165,8 +179,8 @@ def main():
 
     num_gpu = args.num_gpu
     if num_gpu == 2:
-        input_device = 0
-        output_device = 1
+        input_device = 1
+        output_device = 0
     elif num_gpu == 3:
         input_device = [0, 1]
         output_device = 2
@@ -212,12 +226,14 @@ def main():
     with torch.cuda.device(output_master_device):
         defense_models = ['adv_inception_resnet_v2', 'dpn68b_extra']
         defense_cfgs = [config_from_string(s) for s in defense_models]
-        # defense_ensemble = create_ensemble(defense_cfgs, None)
+        defense_ensemble = create_ensemble(defense_cfgs, None)
+
+        defense_ensemble = multi_task.MultiTaskEnsemble(defense_ensemble.models, use_features=True)
 
         # FIXME stick with one known model for now to test
-        defense_ensemble = create_model(
-            'dpn68b', num_classes=1000, checkpoint_path='dpn68_extra.pth',
-            normalizer='dpn', output_fn='log_softmax', drop_first_class=False)
+        #defense_ensemble = create_model(
+        #    'dpn68b', num_classes=1000, checkpoint_path='dpn68_extra.pth',
+        #    normalizer='dpn', output_fn='log_softmax', drop_first_class=False)
 
         if isinstance(output_device, list):
             defense_ensemble = torch.nn.DataParallel(defense_ensemble, output_device).cuda()
@@ -226,7 +242,7 @@ def main():
 
         if args.opt == 'sgd':
             optimizer = torch.optim.SGD(
-                defense_ensemble.parameters(),
+                defense_ensemble.classifier_params(),
                 args.lr,
                 momentum=args.momentum,
                 weight_decay=args.weight_decay)
@@ -257,7 +273,7 @@ def main():
                 print("=> no checkpoint found at '{}'".format(args.resume))
                 exit(-1)
 
-        criterion = torch.nn.NLLLoss().cuda()
+        criterion = torch.nn.CrossEntropyLoss().cuda() #torch.nn.NLLLoss().cuda()
 
         best_prec1 = 0
         for epoch in range(args.start_epoch, args.epochs):
