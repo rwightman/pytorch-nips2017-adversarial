@@ -65,10 +65,12 @@ class MultiTaskEnsemble(nn.Module):
             use_features=False,
             use_adv_classif=False,
             use_is_adv=True,
+            single_output=False,
             activation_fn=torch.nn.ELU()):
         super(MultiTaskEnsemble, self).__init__()
         self.use_features = use_features
         self.activation_fn = activation_fn
+        self.single_output = single_output
         self.num_classes = 1000
         self.models = models if isinstance(models, nn.ModuleList) else nn.ModuleList(models)
 
@@ -111,6 +113,9 @@ class MultiTaskEnsemble(nn.Module):
         output_true = self.classif_true_class(output)
         output_multi = OrderedDict({'class_true': output_true})
 
+        if self.single_output:
+            return output_true
+
         if self.classif_adv_class is not None:
             output_adv = self.classif_adv_class(output)
             output_multi['class_adv'] = output_adv
@@ -120,6 +125,7 @@ class MultiTaskEnsemble(nn.Module):
             output_multi['is_adv'] = output_is_adv
 
         #FIXME hack to make this work with current lack of dict support in data parallel
+
         return tuple(output_multi.values())
 
     def classifier_params(self):
