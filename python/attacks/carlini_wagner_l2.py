@@ -221,4 +221,4 @@ class AttackCarliniWagnerL2(Attack):
             sys.stdout.flush()
             # end outer search loop
 
-        return o_best_attack, None
+        return o_best_attack, None, None

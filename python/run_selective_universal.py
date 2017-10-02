@@ -18,6 +18,7 @@ parser.add_argument('--ensemble', nargs='+', help='Class names for the defensive
 parser.add_argument('--ensemble_weights', nargs='+', type=float,
                     help='Weights for weighted geometric mean of output probs')
 parser.add_argument('--checkpoint_paths', nargs='+', help='Paths to checkpoint files for each model.')
+parser.add_argument('--try_mirrors', action='store_true', default=False)
 
 def main():
     args = parser.parse_args()
@@ -33,6 +34,7 @@ def main():
         args.max_epsilon,
         target_model,
         args.npy_files,
+        try_mirrors = args.try_mirrors
     )
 
     runner = ImageSaveAttackRunner(dataset, args.output_dir)

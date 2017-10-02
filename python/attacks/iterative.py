@@ -104,5 +104,6 @@ class AttackIterative(Attack):
             step += 1
 
         return input_adv.permute(0, 2, 3, 1), \
-               None if self.targeted else target_var.data
+               None if self.targeted else target_var.data, \
+               None
 

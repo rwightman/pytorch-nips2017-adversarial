@@ -21,7 +21,8 @@ class CWInspiredExperiment(AttackExperiment):
         brightness_contrast=False,
         saturation=False,
         prob_dont_augment=0.0,
-        initial_w_matrix=None
+        initial_w_matrix=None,
+        always_target=None
     ):
         super(CWInspiredExperiment, self).__init__(max_epsilon, targeted)
 
@@ -39,9 +40,10 @@ class CWInspiredExperiment(AttackExperiment):
         self.saturation = saturation
         self.prob_dont_augment = prob_dont_augment
         self.initial_w_matrix = initial_w_matrix
+        self.always_target = always_target
 
     def get_name(self):
-        experiment_name = 'cw_inspired_'
+        experiment_name = 'eps{}_cw_inspired_'.format(self.max_epsilon)
         for model, weight in zip(self.ensemble, self.ensemble_weights):
             experiment_name = '{}{}{}'.format(experiment_name, model, weight)
 
@@ -73,6 +75,9 @@ class CWInspiredExperiment(AttackExperiment):
 
         if self.initial_w_matrix is not None:
             experiment_name = '{}_w{}'.format(experiment_name, self.initial_w_matrix)
+
+        if self.always_target is not None:
+            experiment_name = '{}_trgcls{}'.format(experiment_name, self.always_target)
 
         return experiment_name
 
@@ -114,8 +119,13 @@ class CWInspiredExperiment(AttackExperiment):
         if self.initial_w_matrix is not None:
             runargs.extend(['--initial_w_matrix', self.initial_w_matrix])
 
+        if self.always_target is not None:
+            runargs.extend(['--always_target', str(self.always_target)])
+
         runargs.extend(['--batch_size', '8'])
 
         cfg['runargs'] = runargs
+
+        cfg['runargs'].extend(['--time_limit_per_100', str(175.0)])
 
         return cfg
