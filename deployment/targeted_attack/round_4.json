@@ -1,0 +1,46 @@
+{
+    "name": "round_4",
+    "attack_type": "targeted_attack",
+    "epsilon_dict": {
+        "4": {
+            "ensemble": ["adv_inception_resnet_v2", "inception_v3_tf"],
+            "ensemble_weights" : ["4.0", "1.0"],
+            "run_cmd": "run_cw_inspired",
+            "runargs": ["--targeted",
+                        "--n_iter","50",
+                        "--lr", "0.2",
+                        "--no_augmentation",
+                        "--time_limit_per_100", "475"]
+        },
+        "8": {
+            "ensemble": ["adv_inception_resnet_v2", "inception_v3_tf", "adv_inception_v3"],
+            "ensemble_weights" : ["1.0", "2.0", "1.0"],
+            "run_cmd": "run_cw_inspired",
+            "runargs": ["--targeted",
+                        "--n_iter","50",
+                        "--lr", "0.2",
+                        "--no_augmentation",
+                        "--time_limit_per_100", "475"]
+        },
+        "12": {
+            "ensemble": ["adv_inception_resnet_v2", "inception_v3_tf", "adv_inception_v3"],
+            "ensemble_weights" : ["4.0", "1.0", "1.0"],
+            "run_cmd": "run_cw_inspired",
+            "runargs": ["--targeted",
+                        "--n_iter","50",
+                        "--lr", "0.2",
+                        "--no_augmentation",
+                        "--time_limit_per_100", "475"]
+          },
+        "16": {
+            "ensemble": ["adv_inception_resnet_v2", "inception_v3_tf", "adv_inception_v3"],
+            "ensemble_weights" : ["4.0", "1.0", "1.0"],
+            "run_cmd": "run_cw_inspired",
+            "runargs": ["--targeted",
+                        "--n_iter","50",
+                        "--lr", "0.2",
+                        "--no_augmentation",
+                        "--time_limit_per_100", "475"]
+          }
+    }
+}
