@@ -2,8 +2,6 @@ import torch
 import torch.utils.data
 import numpy as np
 from copy import deepcopy
-from torchvision import datasets
-from torchvision import utils
 
 from models import create_ensemble, create_model
 from models.model_configs import config_from_string
@@ -32,7 +30,7 @@ def attack_factory(model, cfg):
 
 class AdversarialGenerator:
 
-    def __init__(self, loader, output_batch_size=8, input_device=0, output_device=None):
+    def __init__(self, loader, output_batch_size=8, input_devices=[0], master_output_device=None):
         self.loader = loader
         self.attack_cfgs = [
             {'attack_name': 'iterative', 'targeted': True, 'num_steps': 10, 'target_rand': True},
@@ -53,11 +51,9 @@ class AdversarialGenerator:
         self.attack_idx = 0
         self.input_batch_size = loader.batch_size
         self.output_batch_size = output_batch_size
-        self.master_input_device = input_device[0] if isinstance(input_device, list) else input_device
-        self.input_device = input_device
-        self.output_device = output_device[0] if isinstance(output_device, list) else output_device
-        print('Input device: ', self.master_input_device, self.input_device)
-        print('Output device: ', self.output_device)
+        self.input_devices = input_devices
+        self.master_input_device = input_devices[0]
+        self.master_output_device = master_output_device
         self.normal_sample_ratio = 0.5
         self.img_size = 299
 
@@ -77,10 +73,10 @@ class AdversarialGenerator:
         self.model_idx = inc_roll(self.model_idx, len(self.models))
         model = self.models[self.model_idx]
         # move model params to GPU(s)
-        if isinstance(self.input_device, list):
-            model = torch.nn.DataParallel(model, self.input_device).cuda()
+        if len(self.input_devices) > 1:
+            model = torch.nn.DataParallel(model, self.input_devices).cuda()
         else:
-            model.cuda(self.input_device)
+            model.cuda(self.master_input_device)
         return model
 
     def _next_attack(self, model):
@@ -97,11 +93,11 @@ class AdversarialGenerator:
         output_target_true = torch.zeros((self.output_batch_size,)).long()
         output_target_adv = torch.zeros((self.output_batch_size,)).long()
         output_is_adv = torch.zeros((self.output_batch_size,)).long()
-        if self.output_device is not None:
-            output_image = output_image.cuda(self.output_device)
-            output_target_true = output_target_true.cuda(self.output_device)
-            output_target_adv = output_target_adv.cuda(self.output_device)
-            output_is_adv = output_is_adv.cuda(self.output_device)
+        if self.master_output_device is not None:
+            output_image = output_image.cuda(self.master_output_device)
+            output_target_true = output_target_true.cuda(self.master_output_device)
+            output_target_adv = output_target_adv.cuda(self.master_output_device)
+            output_is_adv = output_is_adv.cuda(self.master_output_device)
         return output_image, output_target_true, output_target_adv, output_is_adv
 
     def _output_factor(self, curr_batch_size=None):
