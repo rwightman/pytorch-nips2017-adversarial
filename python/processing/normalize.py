@@ -14,6 +14,16 @@ def get_normalizer(name):
         assert False, 'Error: Unknown normalizer specified'
 
 
+class Normalize(nn.Module):
+    def __init__(self, mean, std):
+        super(Normalize, self).__init__()
+        self.mean = autograd.Variable(torch.FloatTensor(mean)).view(-1, 1, 1).cuda()
+        self.std = autograd.Variable(torch.FloatTensor(std)).view(-1, 1, 1).cuda()
+
+    def forward(self, x):
+        return (x - self.mean) / self.std
+
+
 class NormalizeLe(nn.Module):
     """Normalize to -1..1 in Google Inception style
     """
