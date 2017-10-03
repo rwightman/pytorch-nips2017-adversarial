@@ -50,8 +50,8 @@ parser.add_argument('--print-freq', '-p', default=10, type=int,
                     metavar='N', help='print frequency (default: 10)')
 parser.add_argument('--resume', default='', type=str, metavar='PATH',
                     help='path to latest checkpoint (default: none)')
-parser.add_argument('--sparse', action='store_true', default=False,
-                    help='enable sparsity masking for DSD training')
+parser.add_argument('--mt', action='store_true', default=False,
+                    help='multi-task defense objective')
 
 
 def train(args, train_loader, model, criterion, optimizer, epoch):
@@ -190,16 +190,18 @@ def main():
 
     num_gpu = args.num_gpu
     if num_gpu == 2:
-        input_device = 1
-        output_device = 0
+        input_devices = [1]
+        output_devices = [0]
     elif num_gpu == 3:
-        input_device = [0, 1]
-        output_device = 2
+        input_devices = [0, 1]
+        output_devices = [2]
     elif num_gpu == 4:
-        input_device = [0, 1]
-        output_device = [2, 3]
+        input_devices = [0, 1]
+        output_devices = [2, 3]
     else:
         assert False, 'Unsupported number of gpus'
+
+    master_output_device = output_devices[0]
 
     train_dir = os.path.join(args.data, 'train')
     val_dir = os.path.join(args.data, 'validation')
@@ -217,8 +219,9 @@ def main():
     adv_dataset = AdversarialGenerator(
         train_loader,
         output_batch_size=args.batch_size,
-        input_device=input_device,
-        output_device=output_device)
+        input_devices=input_devices,
+        master_output_device=master_output_device)
+
     if args.mp:
         adv_dataset = MpFeeder(adv_dataset, maxsize=8)
 
@@ -233,25 +236,22 @@ def main():
         batch_size=args.batch_size, shuffle=False,
         num_workers=args.workers, pin_memory=True)
 
-    output_master_device = output_device[0] if isinstance(output_device, list) else output_device
-    with torch.cuda.device(output_master_device):
+    with torch.cuda.device(master_output_device):
         defense_models = ['adv_inception_resnet_v2', 'dpn68b_extra']
         defense_cfgs = [config_from_string(s) for s in defense_models]
         defense_ensemble = create_ensemble(defense_cfgs, None)
 
-        defense_ensemble = multi_task.MultiTaskEnsemble(defense_ensemble.models, use_features=False)
-        
-        # FIXME stick with one known model for now to test
-        #defense_ensemble = create_model(
-        #    'dpn68b', num_classes=1000, checkpoint_path='dpn68_extra.pth',
-        #    normalizer='dpn', output_fn='log_softmax', drop_first_class=False)
+        if args.mt:
+            defense_ensemble = multi_task.MultiTaskEnsemble(
+                defense_ensemble.models,
+                use_features=False)
 
-        if isinstance(output_device, list):
-            defense_ensemble = torch.nn.DataParallel(defense_ensemble, output_device).cuda()
+        if len(output_devices) > 1:
+            defense_ensemble = torch.nn.DataParallel(defense_ensemble, output_devices).cuda()
             opt_params = defense_ensemble.module.classifier_params()
         else:
             defense_ensemble.cuda()
-            opt_params = defense_ensemble.classifier_params()
+            opt_params = defense_ensemble.parameters()
 
         if args.opt == 'sgd':
             optimizer = torch.optim.SGD(
