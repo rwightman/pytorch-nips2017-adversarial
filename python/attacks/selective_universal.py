@@ -63,8 +63,5 @@ class SelectiveUniversal(object):
                     else:
                         best_is_fooled = False
 
-
-        return np.transpose(best_perturbed, axes=(0, 2, 3, 1)), None
-        return best_perturbed, None
         return best_perturbed, None, best_is_fooled
 

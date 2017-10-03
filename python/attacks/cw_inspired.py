@@ -75,7 +75,6 @@ class CWInspired(object):
         ).cuda()
         self.loss_fn = torch.nn.NLLLoss().cuda()
 
-
     def __call__(self, input, target, batch_idx, deadline_time):
         if deadline_time:
             time_remaining = deadline_time - time.time()
