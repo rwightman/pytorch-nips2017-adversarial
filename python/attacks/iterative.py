@@ -12,12 +12,16 @@ class AttackIterative(Attack):
 
     def __init__(
             self,
-            model,
-            targeted=True, random_start=False, max_epsilon=16, norm=float('inf'),
-            step_alpha=None, num_steps=None, debug=False):
+            target_model,
+            max_epsilon=16, targeted=True, random_start=False, norm=float('inf'),
+            step_alpha=None, num_steps=None, target_min=False, target_rand=False,
+            debug=False):
 
-        self.model = model
+        self.target_model = target_model
         self.targeted = targeted
+        assert not target_min or not target_rand  # shouldn't both be set
+        self.target_min = target_min
+        self.target_rand = target_rand
         self.random_start = random_start
         self.eps = max_epsilon / 255.0
         self.num_steps = num_steps or 10
@@ -49,10 +53,20 @@ class AttackIterative(Attack):
 
             done_fwd = False
             if step == 0:
-                if not self.targeted:
-                    # for non-targeted, we'll move away from most likely predicted target
-                    output = self.model(input_var)
-                    target_var.data = output.data.max(1)[1]
+                if not self.targeted or self.target_min or self.target_rand:
+                    # For non-targeted , we'll move away from most likely predicted target
+                    # and for targeted with min_target, we'll moe towards least likely target
+                    output = self.target_model(input_var)
+                    if self.target_min:
+                        target_var.data = output.data.min(1)[1]
+                    elif self.target_rand:
+                        # little more interesting than targeting least likely all the time,
+                        # pick random target
+                        output_exp = 1. - torch.exp(output.data)
+                        output_exp.scatter_(1, target_var.data.unsqueeze(1), 0.)
+                        target_var.data = torch.multinomial(output_exp, 1).squeeze()
+                    else:
+                        target_var.data = output.data.max(1)[1]
                     done_fwd = True
 
                 if self.random_start:
@@ -61,7 +75,7 @@ class AttackIterative(Attack):
                     done_fwd = False
 
             if not done_fwd:
-                output = self.model(input_var)
+                output = self.target_model(input_var)
 
             loss = self.loss_fn(output, target_var)
             loss.backward()
@@ -103,7 +117,7 @@ class AttackIterative(Attack):
             input_var.data = input_adv
             step += 1
 
-        return input_adv.permute(0, 2, 3, 1), \
+        return input_adv, \
                None if self.targeted else target_var.data, \
                None
 

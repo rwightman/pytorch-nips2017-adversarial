@@ -9,7 +9,7 @@ def normalizer_from_model(model_name):
     return normalizer
 
 
-def config_from_string(string):
+def config_from_string(string, output_fn='log_softmax'):
     string_to_config_dict = {
         'inception_v3_tf': {
             'model_name': 'inception_v3', 'num_classes': 1001, 'input_size': 299,
@@ -81,6 +81,6 @@ def config_from_string(string):
 
     for _, config_dict in string_to_config_dict.items():
         config_dict['normalizer'] = normalizer_from_model(config_dict['model_name'])
-        config_dict['output_fn'] = 'log_softmax'
+        config_dict['output_fn'] = output_fn
 
     return string_to_config_dict[string]

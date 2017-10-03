@@ -31,9 +31,9 @@ def main():
     target_model.eval()
 
     attack = SelectiveUniversal(
-        args.max_epsilon,
         target_model,
         args.npy_files,
+        max_epsilon=args.max_epsilon,
         try_mirrors = args.try_mirrors
     )
 

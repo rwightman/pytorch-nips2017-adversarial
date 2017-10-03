@@ -52,8 +52,8 @@ def main():
             model.get_core_model().load_state_dict(checkpoint['state_dict'])
         else:
             model.get_core_model().load_state_dict(checkpoint)
-        model.get_core_model().cuda()
-        model.get_core_model().eval()
+    ensemble.cuda()
+    ensemble.eval()
 
     outputs = []
     for batch_idx, (input, _) in enumerate(loader):

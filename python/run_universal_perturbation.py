@@ -20,8 +20,8 @@ def main():
     dataset = Dataset(args.input_dir, target_file='')
 
     attack = UniversalPerturbation(
-        args.max_epsilon,
         args.npy_file,
+        max_epsilon=args.max_epsilon,
     )
 
     runner = ImageSaveAttackRunner(dataset, args.output_dir)

@@ -28,6 +28,8 @@ class TransformedModel(nn.Module):
             drop_first_class=False):
         super(TransformedModel, self).__init__()
         self.model = model
+        if hasattr(model, 'num_features'):
+            self.num_features = model.num_features
         self.drop_first_class = drop_first_class
 
         pre = OrderedDict()
@@ -50,6 +52,12 @@ class TransformedModel(nn.Module):
             o = o[:, 1:]
         if self.post is not None:
             o = self.post(o)
+        return o
+
+    def forward_features(self, x):
+        if self.pre is not None:
+            x = self.pre(x)
+        o = self.model.forward_features(x)
         return o
 
     def get_core_model(self):
