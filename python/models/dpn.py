@@ -206,6 +206,7 @@ class DPN(nn.Module):
                  b=False, k_sec=(3, 4, 20, 3), inc_sec=(16, 32, 24, 128),
                  num_classes=1000, test_time_pool=False):
         super(DPN, self).__init__()
+        self.num_classes = num_classes
         self.test_time_pool = test_time_pool
         self.b = b
         bw_factor = 1 if small else 4
@@ -265,13 +266,21 @@ class DPN(nn.Module):
         self.classifier = nn.Conv2d(in_chs, num_classes, kernel_size=1, bias=True)
 
     def get_classifier(self):
-        return self.classif
+        return self.classifier
 
     def reset_classifier(self, num_classes):
+        self.num_classes = num_classes
         if num_classes:
-            self.classif = nn.Conv2d(self.num_features, num_classes, kernel_size=1, bias=True)
+            self.classifier = nn.Conv2d(self.num_features, num_classes, kernel_size=1, bias=True)
         else:
-            self.classif = None
+            self.classifier = None
+
+    def forward_features(self, x, pool=True):
+        x = self.features(x)
+        if pool:
+            x = adaptive_avgmax_pool2d(x, pool_type='avg')
+            x = x.view(x.size(0), -1)
+        return x
 
     def forward(self, x):
         x = self.features(x)
@@ -285,15 +294,4 @@ class DPN(nn.Module):
             out = self.classifier(x)
         return out.view(out.size(0), -1)
 
-    def forward_features(self, x, pool=True):
-        x = self.features(x)
-        if pool:
-            x = adaptive_avgmax_pool2d(x, pool_type='avg')
-            x = x.view(x.size(0), -1)
-        return x
 
-    def forward_classifier(self, x):
-        return self.classifier(x)
-
-    def get_classifier(self):
-        return self.classifier

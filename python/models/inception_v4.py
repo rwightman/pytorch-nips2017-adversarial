@@ -234,6 +234,7 @@ class InceptionV4(nn.Module):
         super(InceptionV4, self).__init__()
         self.drop_rate = drop_rate
         self.global_pool = global_pool
+        self.num_classes = num_classes
         self.features = nn.Sequential(
             BasicConv2d(3, 32, kernel_size=3, stride=2),
             BasicConv2d(32, 32, kernel_size=3, stride=1),
@@ -260,17 +261,23 @@ class InceptionV4(nn.Module):
         )
         self.classif = nn.Linear(1536 * pooling_factor(global_pool), num_classes)
 
-    def get_fc(self):
+    def get_classifier(self):
         return self.classif
 
-    def reset_fc(self, num_classes, global_pool='avg'):
+    def reset_classifier(self, num_classes, global_pool='avg'):
         self.global_pool = global_pool
+        self.num_classes = num_classes
         self.classif = nn.Linear(1536 * pooling_factor(global_pool), num_classes)
 
-    def forward(self, x):
+    def forward_features(self, x, pool=True):
         x = self.features(x)
-        x = adaptive_avgmax_pool2d(x, self.global_pool, count_include_pad=False)
-        x = x.view(x.size(0), -1)
+        if pool:
+            x = adaptive_avgmax_pool2d(x, self.global_pool, count_include_pad=False)
+            x = x.view(x.size(0), -1)
+        return x
+
+    def forward(self, x):
+        x = self.forward_features(x)
         if self.drop_rate > 0:
             x = F.dropout(x, p=self.drop_rate, training=self.training)
         x = self.classif(x)

@@ -21,31 +21,31 @@ def config_from_string(string, output_fn='log_softmax'):
             'model_name': 'inception_v3', 'num_classes': 1000, 'input_size': 299,
             'checkpoint_file': 'inception_v3_google-1a9a5a14.pth', 'drop_first_class': False},
         'resnet18': {
-            'model_name': 'resnet18-torchvision', 'num_classes': 1000, 'input_size': 224,
+            'model_name': 'resnet18', 'num_classes': 1000, 'input_size': 224,
             'checkpoint_file': 'resnet18-5c106cde.pth', 'drop_first_class': False},
         'resnet34': {
-            'model_name': 'resnet34-torchvision', 'num_classes': 1000, 'input_size': 224,
+            'model_name': 'resnet34', 'num_classes': 1000, 'input_size': 224,
             'checkpoint_file': 'resnet34-333f7ec4.pth', 'drop_first_class': False},
         'resnet50': {
-            'model_name': 'resnet50-torchvision', 'num_classes': 1000, 'input_size': 224,
+            'model_name': 'resnet50', 'num_classes': 1000, 'input_size': 224,
             'checkpoint_file': 'resnet50-19c8e357.pth', 'drop_first_class': False},
         'resnet101': {
-            'model_name': 'resnet101-torchvision', 'num_classes': 1000, 'input_size': 224,
+            'model_name': 'resnet101', 'num_classes': 1000, 'input_size': 224,
             'checkpoint_file': 'resnet101-5d3b4d8f.pth', 'drop_first_class': False},
         'resnet152': {
-            'model_name': 'resnet152-torchvision', 'num_classes': 1000, 'input_size': 224,
+            'model_name': 'resnet152', 'num_classes': 1000, 'input_size': 224,
             'checkpoint_file': 'resnet152-b121ed2d.pth', 'drop_first_class': False},
         'densenet121': {
-            'model_name': 'densenet121-torchvision', 'num_classes': 1000, 'input_size': 224,
+            'model_name': 'densenet121', 'num_classes': 1000, 'input_size': 224,
             'checkpoint_file': 'densenet121-241335ed.pth', 'drop_first_class': False},
         'densenet169': {
-            'model_name': 'densenet169-torchvision', 'num_classes': 1000, 'input_size': 224,
+            'model_name': 'densenet169', 'num_classes': 1000, 'input_size': 224,
             'checkpoint_file': 'densenet169-6f0f7f60.pth', 'drop_first_class': False},
         'densenet201': {
-            'model_name': 'densenet201-torchvision', 'num_classes': 1000, 'input_size': 224,
+            'model_name': 'densenet201', 'num_classes': 1000, 'input_size': 224,
             'checkpoint_file': 'densenet201-4c113574.pth', 'drop_first_class': False},
         'densenet161': {
-            'model_name': 'densenet161-torchvision', 'num_classes': 1000, 'input_size': 224,
+            'model_name': 'densenet161', 'num_classes': 1000, 'input_size': 224,
             'checkpoint_file': 'densenet161-17b70270.pth', 'drop_first_class': False},
         'squeezenet1_0': {
             'model_name': 'squeezenet1_0', 'num_classes': 1000, 'input_size': 224,

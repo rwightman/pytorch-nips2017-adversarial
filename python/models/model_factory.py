@@ -152,3 +152,20 @@ def create_model(
 
     return model
 
+
+def create_model_from_cfg(mc, checkpoint_path=''):
+    if 'kwargs' not in mc:
+        mc['kwargs'] = {}
+
+    model = create_model(
+        model_name=mc['model_name'],
+        num_classes=mc['num_classes'],
+        input_size=mc['input_size'],
+        normalizer=mc['normalizer'],
+        output_fn=mc['output_fn'],
+        drop_first_class=mc['drop_first_class'],
+        checkpoint_path=checkpoint_path if checkpoint_path else mc['checkpoint_file'],
+        **mc['kwargs']
+    )
+
+    return model

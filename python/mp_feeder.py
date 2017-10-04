@@ -2,7 +2,6 @@ import sys
 import torch
 import torch.utils.data
 import torch.multiprocessing as mp
-#import multiprocessing as mp
 try:
     mp.set_sharing_strategy('file_system')
     mp.set_start_method('spawn')
@@ -29,13 +28,12 @@ class MpFeeder:
                     self.queue.put(element)
                     if self.is_shutdown.is_set():
                         break
-                self.queue.put((None, None, None, None))
+                self.queue.put(None)
 
             print("Waiting on done")
             self.is_done.wait()
         except Exception as e:
-            print("Ahhhh", str(e))
-            self.queue.put((Exception(), None, None, None))
+            self.queue.put(e)
             self.is_shutdown.set()
             self.queue.close()
 
@@ -49,7 +47,7 @@ class MpFeeder:
     def __iter__(self):
         while True:
             output = self.queue.get()
-            if input is None:
+            if output is None:
                 break
             yield output
 
@@ -64,30 +62,26 @@ class TestDataset():
 
     def __getitem__(self, index):
         img = torch.rand(self.img_size).cuda()
-        true_target = torch.LongTensor([index]).cuda()
-        adv_target = torch.LongTensor([index]).cuda()
-        return img, true_target, adv_target
+        target = torch.LongTensor([index]).cuda()
+        return img, target
 
     def __len__(self):
         return self.num
 
 
 def test():
-    test_dataset = TestDataset()
+    num_iterations = 100000
 
-    loader = torch.utils.data.DataLoader(test_dataset, batch_size=8, shuffle=False)
+    test_dataset = TestDataset()
+    loader = torch.utils.data.DataLoader(test_dataset, batch_size=16, shuffle=False)
 
     q = MpFeeder(loader)
-
-    count = 0
-    while True:
-        for i, (input, true_target, adv_target) in enumerate(q):
-            print(i, true_target)
-        count += 1
-        print("done, loop %d" % count)
+    for i in range(num_iterations):
+        for qi, (input, target) in enumerate(q):
+            print(qi, target)
+        print("done, loop %d" % i)
 
     q.shutdown()
-
     q.done()
 
 

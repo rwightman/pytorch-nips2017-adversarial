@@ -41,13 +41,14 @@ class AdversarialGenerator:
         self.attack_probs = [0.4, 0.4, 0.1, 0.1]
         self.model_cfgs = [  # FIXME these are currently just test configs, need to setup properly
             {'models': ['inception_v3_tf']},
-            {'models': ['inception_resnet_v2', 'resnet34'], 'weights': [1.0, .9]},
+            {'models': ['inception_resnet_v2', 'resnet34'], 'weights': [1.0, 1.0]},
             {'models': ['adv_inception_resnet_v2', 'inception_v3_tf']},
         ]
         self.max_epsilons = np.array([8., 12., 16.])
         self.max_epsilon_probs = None
         self.models = []
         self.model_idx = None
+        self.target_model = None
         self.attack_idx = 0
         self.input_batch_size = loader.batch_size
         self.output_batch_size = output_batch_size
@@ -55,41 +56,49 @@ class AdversarialGenerator:
         self.master_input_device = input_devices[0]
         self.master_output_device = master_output_device
         self.normal_sample_ratio = 0.5
-        self.img_size = 299
 
         self._load_models()
 
     def _load_models(self):
+        # pre-load all model params into system (CPU) memory
         for mc in self.model_cfgs:
-            # pre-load all model params into system (CPU) memory
             cfgs = [config_from_string(x) for x in mc['models']]
             weights = mc['weights'] if 'weights' in mc and len(mc['weights']) else None
             ensemble = create_ensemble(cfgs, weights)
             self.models.append(ensemble)
 
     def _next_model(self):
-        if self.model_idx is not None:
-            self.models[self.model_idx].cpu()  # put model params back on CPU
-        self.model_idx = inc_roll(self.model_idx, len(self.models))
-        model = self.models[self.model_idx]
-        # move model params to GPU(s)
-        if len(self.input_devices) > 1:
-            model = torch.nn.DataParallel(model, self.input_devices).cuda()
-        else:
-            model.cuda(self.master_input_device)
-        return model
+        next_idx = inc_roll(self.model_idx, len(self.models))
 
-    def _next_attack(self, model):
+        if self.model_idx != next_idx:
+            # delete current target_model with params on GPU
+            if self.target_model is not None:
+                del self.target_model
+
+            # deep copy next model params from CPU to CPU
+            model = deepcopy(self.models[next_idx])
+
+            # move next model params to GPU
+            if len(self.input_devices) > 1:
+                model = torch.nn.DataParallel(model, self.input_devices).cuda()
+            else:
+                model.cuda(self.master_input_device)
+
+            self.model_idx = next_idx
+            self.target_model = model
+
+    def _next_attack(self):
+        self._next_model()  # FIXME we could change the model every n attacks?
         attack_idx = np.random.choice(range(len(self.attack_cfgs)), p=self.attack_probs)
         cfg = deepcopy(self.attack_cfgs[attack_idx])
         if 'max_epsilon' not in cfg:
             cfg['max_epsilon'] = np.random.choice(self.max_epsilons, p=self.max_epsilon_probs)
         with torch.cuda.device(self.master_input_device):
-            attack = attack_factory(model, cfg)
+            attack = attack_factory(self.target_model, cfg)
         return attack
 
-    def _initialize_outputs(self):
-        output_image = torch.zeros((self.output_batch_size, 3, self.img_size, self.img_size))
+    def _initialize_outputs(self, image_shape=(3, 299, 299)):
+        output_image = torch.zeros((self.output_batch_size,) + image_shape)
         output_target_true = torch.zeros((self.output_batch_size,)).long()
         output_target_adv = torch.zeros((self.output_batch_size,)).long()
         output_is_adv = torch.zeros((self.output_batch_size,)).long()
@@ -107,12 +116,15 @@ class AdversarialGenerator:
         return max(self.input_batch_size, self.output_batch_size) // self.input_batch_size
 
     def __iter__(self):
-        images, target_true, target_adv, is_adv = self._initialize_outputs()
         out_idx = 0
-        model = self._next_model()
-        attack = self._next_attack(model)
+        images, target_true, target_adv, is_adv = None, None, None, None
+        attack = self._next_attack()
         for i, (input, target) in enumerate(self.loader):
             curr_input_batch_size = input.size(0)
+            if images is None:
+                # lazy creation of output tensors based on input dimensions
+                image_shape = input.size()[1:]
+                images, target_true, target_adv, is_adv = self._initialize_outputs(image_shape)
             in_idx = 0
             for j in range(self._output_factor(curr_input_batch_size)):
                 # copy unperturbed samples from input to output
@@ -126,9 +138,8 @@ class AdversarialGenerator:
 
                 # compute perturbed samples for current attack and copy to output
                 num_p = curr_input_batch_size - num_u
-
                 with torch.cuda.device(self.master_input_device):
-                    perturbed, adv_targets = attack(
+                    perturbed, adv_targets, _ = attack(
                         input[in_idx:in_idx + num_p, :, :, :].cuda(),
                         target[in_idx:in_idx + num_p].cuda(),
                         batch_idx=i,
@@ -151,14 +162,14 @@ class AdversarialGenerator:
 
             if out_idx == self.output_batch_size:
                 yield images, target_true, target_adv, is_adv
-                images, target_true, target_adv, is_adv = self._initialize_outputs()
-                out_idx = 0
-                model = self._next_model()
-                del attack
-                attack = self._next_attack(model)
 
-        if out_idx != self.output_batch_size:
-            print('Output truncated last bach (%d)' % out_idx)
+                # Initialize next output batch and next attack
+                out_idx = 0
+                images, target_true, target_adv, is_adv = None, None, None, None
+                del attack
+                attack = self._next_attack()
+
+        if out_idx and out_idx != self.output_batch_size:
             yield images[:out_idx, :, :, :], target_true[:out_idx], target_adv[:out_idx], is_adv[:out_idx]
 
     def __len__(self):

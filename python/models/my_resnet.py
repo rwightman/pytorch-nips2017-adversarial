@@ -110,6 +110,7 @@ class ResNet(nn.Module):
     def __init__(self, block, layers, num_classes=1000,
                  drop_rate=0.0, block_drop_rate=0.0,
                  global_pool='avg'):
+        self.num_classes = num_classes
         self.inplanes = 64
         self.drop_rate = drop_rate
         self.expansion = block.expansion
@@ -155,6 +156,7 @@ class ResNet(nn.Module):
 
     def reset_classifier(self, num_classes, global_pool='avg'):
         self.global_pool = AdaptiveAvgMaxPool2d(pool_type=global_pool)
+        self.num_classes = num_classes
         if num_classes:
             self.fc = nn.Linear(512 * self.expansion * self.global_pool.factor(), num_classes)
         else:
@@ -175,9 +177,6 @@ class ResNet(nn.Module):
             x = self.global_pool(x)
             x = x.view(x.size(0), -1)
         return x
-
-    def forward_classifier(self, x):
-        return self.fc(x)
 
     def forward(self, x):
         x = self.forward_features(x)

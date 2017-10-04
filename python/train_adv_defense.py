@@ -4,14 +4,13 @@ import math
 import time
 import torch
 import torch.utils.data
-import torch.multiprocessing as mp
 import numpy as np
 from copy import deepcopy
 from torchvision import transforms
 from torchvision import datasets
 from torchvision import utils
 
-from models import create_ensemble, create_model
+from models import create_ensemble, create_model_from_cfg, Ensemble
 from models.model_configs import config_from_string
 from adversarial_generator import AdversarialGenerator
 from mp_feeder import MpFeeder
@@ -22,9 +21,9 @@ parser.add_argument('data', metavar='DIR',
                     help='path to dataset')
 parser.add_argument('--mp', action='store_true', default=False,
                     help='multi-process training, attack and defense in separate processes')
-parser.add_argument('--num-gpu', default=2, type=int, metavar='N',
-                    help='number of gpus to use (default: 2)')
-parser.add_argument('--workers', default=4, type=int, metavar='N',
+parser.add_argument('--num-gpu', default=1, type=int, metavar='N',
+                    help='number of gpus to use (default: 1)')
+parser.add_argument('-j', '--workers', default=1, type=int, metavar='N',
                     help='number of data loading workers (default: 4)')
 parser.add_argument('--epochs', default=100, type=int, metavar='N',
                     help='number of total epochs to run')
@@ -36,8 +35,6 @@ parser.add_argument('-b', '--batch-size', default=16, type=int,
                     metavar='N', help='mini-batch size (default: 256)')
 parser.add_argument('--img-size', default=299, type=int,
                     metavar='N', help='Input image dimension')
-parser.add_argument('--drop', type=float, default=0., metavar='DROP',
-                    help='Dropout rate (default: 0.)')
 parser.add_argument('--opt', default='sgd', type=str,
                     metavar='OPT', help='optimizer')
 parser.add_argument('--lr', '--learning-rate', default=0.01, type=float,
@@ -52,6 +49,8 @@ parser.add_argument('--resume', default='', type=str, metavar='PATH',
                     help='path to latest checkpoint (default: none)')
 parser.add_argument('--mt', action='store_true', default=False,
                     help='multi-task defense objective')
+parser.add_argument('--co', action='store_true', default=False,
+                    help='optimize only defense classifier(s) parameters')
 
 
 def train(args, train_loader, model, criterion, optimizer, epoch):
@@ -65,7 +64,14 @@ def train(args, train_loader, model, criterion, optimizer, epoch):
     model.train()
 
     end = time.time()
-    for i, (input, target, target_adv, is_adv) in enumerate(train_loader):
+    for i, batch in enumerate(train_loader):
+        if isinstance(batch, Exception):
+            print('Exception: ', str(batch))
+            exit(1)
+        elif batch is None:
+            break
+        input, target, target_adv, is_adv = batch
+
         # measure data loading time
         data_time.update(time.time() - end)
 
@@ -108,9 +114,6 @@ def train(args, train_loader, model, criterion, optimizer, epoch):
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
-
-        #if args.sparse:
-        #    dense_sparse_dense.apply_sparsity_mask(model)
 
         # measure elapsed time
         batch_time.update(time.time() - end)
@@ -185,11 +188,27 @@ def validate(args, val_loader, model, criterion):
     return top1.avg
 
 
+def get_opt_params(module, classifier_only=False):
+    if isinstance(module, torch.nn.DataParallel):
+        module = module.module
+    if classifier_only:
+        if isinstance(module, (multi_task.MultiTaskEnsemble, multi_task.MultiTask, Ensemble)):
+            opt_params = module.classifier_parameters()
+        else:
+            opt_params = module.get_classifier().parameters()
+    else:
+        opt_params = module.parameters()
+    return opt_params
+
+
 def main():
     args = parser.parse_args()
 
     num_gpu = args.num_gpu
-    if num_gpu == 2:
+    if num_gpu == 1:
+        input_devices = [0]
+        output_devices = [0]
+    elif num_gpu == 2:
         input_devices = [1]
         output_devices = [0]
     elif num_gpu == 3:
@@ -237,31 +256,35 @@ def main():
         num_workers=args.workers, pin_memory=True)
 
     with torch.cuda.device(master_output_device):
-        defense_models = ['adv_inception_resnet_v2', 'dpn68b_extra']
-        defense_cfgs = [config_from_string(s) for s in defense_models]
-        defense_ensemble = create_ensemble(defense_cfgs, None)
+        defense_ensemble = ['adv_inception_resnet_v2', 'dpn68b_extra'] #FIXME argument
+        defense_cfgs = [config_from_string(s, output_fn='') for s in defense_ensemble]
+        if len(defense_ensemble) > 1:
+            defense_model = create_ensemble(defense_cfgs, None)
+        else:
+            defense_model = create_model_from_cfg(defense_cfgs[0])
 
         if args.mt:
-            defense_ensemble = multi_task.MultiTaskEnsemble(
-                defense_ensemble.models,
-                use_features=False)
+            if len(defense_ensemble) > 1:
+                defense_model = multi_task.MultiTaskEnsemble(
+                    defense_model.models,
+                    use_features=False)
+            else:
+                defense_model = multi_task.MultiTask(defense_model)
 
         if len(output_devices) > 1:
-            defense_ensemble = torch.nn.DataParallel(defense_ensemble, output_devices).cuda()
-            opt_params = defense_ensemble.module.classifier_params()
+            defense_model = torch.nn.DataParallel(defense_model, output_devices).cuda()
         else:
-            defense_ensemble.cuda()
-            opt_params = defense_ensemble.parameters()
+            defense_model.cuda()
 
         if args.opt == 'sgd':
             optimizer = torch.optim.SGD(
-                opt_params,
+                get_opt_params(defense_model, classifier_only=args.co),
                 args.lr,
                 momentum=args.momentum,
                 weight_decay=args.weight_decay)
         elif args.opt =='adam':
             optimizer = torch.optim.Adam(
-                opt_params,
+                get_opt_params(defense_model, classifier_only=args.co),
                 args.lr,
                 weight_decay=args.weight_decay)
         else:
@@ -274,29 +297,29 @@ def main():
                 if isinstance(checkpoint, dict) and 'state_dict' in checkpoint:
                     args.start_epoch = checkpoint['epoch']
                     #best_prec1 = checkpoint['best_prec1']
-                    defense_ensemble.load_state_dict(checkpoint['state_dict'])
+                    defense_model.load_state_dict(checkpoint['state_dict'])
                     optimizer.load_state_dict(checkpoint['optimizer'])
                     print("=> loaded checkpoint '{}' (epoch {})".format(
                         args.resume, checkpoint['epoch']))
                 else:
                     # load from a non-training state dict only checkpoint
-                    defense_ensemble.load_state_dict(checkpoint)
+                    defense_model.load_state_dict(checkpoint)
                     print("=> loaded checkpoint '{}'".format(args.resume))
             else:
                 print("=> no checkpoint found at '{}'".format(args.resume))
                 exit(-1)
 
-        criterion = torch.nn.CrossEntropyLoss().cuda() #torch.nn.NLLLoss().cuda()
+        criterion = torch.nn.CrossEntropyLoss().cuda()
 
         best_prec1 = 0
         for epoch in range(args.start_epoch, args.epochs):
             adjust_learning_rate(args.lr, optimizer, epoch, decay_epochs=args.decay_epochs)
 
             # train for one epoch
-            train(args, adv_dataset, defense_ensemble, criterion, optimizer, epoch)
+            train(args, adv_dataset, defense_model, criterion, optimizer, epoch)
 
             # evaluate on validation set
-            prec1 = validate(args, val_loader, defense_ensemble, criterion)
+            prec1 = validate(args, val_loader, defense_model, criterion)
 
             #FIXME run another validation on all adversarial examples?
 
@@ -306,7 +329,7 @@ def main():
             save_checkpoint({
                     'epoch': epoch + 1,
                     'arch': 'FIXME',
-                    'state_dict': defense_ensemble.state_dict(),
+                    'state_dict': defense_model.state_dict(),
                     'best_prec1': best_prec1,
                     'optimizer': optimizer.state_dict(),
                 },

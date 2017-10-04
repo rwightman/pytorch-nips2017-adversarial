@@ -16,13 +16,16 @@ def multi_loss(output, target, target_adv=None, is_adv=None, criterion=nn.NLLLos
 
 class MultiTask(nn.Module):
 
-    def __init__(self, model, use_adv_classif=True, use_is_adv=True):
+    def __init__(self, model, use_adv_classif=False, use_is_adv=True):
         super(MultiTask, self).__init__()
         self.model = model
         self.in_features = model.num_features
+        self.num_classes = model.num_classes
+
+        self.classif_true = model.get_classifier()  # shallow copy, shares params
 
         if use_adv_classif:
-            self.classif_adv_class = deepcopy(model.get_classifier())
+            self.classif_adv_class = nn.Linear(self.in_features, self.num_classes)
         else:
             self.classif_adv_class = None
 
@@ -33,7 +36,8 @@ class MultiTask(nn.Module):
 
     def forward(self, x):
         features = self.model.forward_features(x, pool=True)
-        output_true = self.model.forward_classifier(features)
+
+        output_true = self.classif_true(features)
         output_multi = OrderedDict({'class_true': output_true})
 
         if self.classif_adv_class is not None:
@@ -47,9 +51,9 @@ class MultiTask(nn.Module):
         #FIXME hack to make this work with current lack of dict support in DataParallel
         return tuple(output_multi.values())
 
-    def classifier_params(self):
+    def classifier_parameters(self):
         params = []
-        params += self.model.get_classifier().parameters()
+        params += self.classif_true.parameters()
         if self.classif_adv_class is not None:
             params += self.classif_adv_class.parameters()
         if self.classif_is_adv is not None:
@@ -71,7 +75,7 @@ class MultiTaskEnsemble(nn.Module):
         self.use_features = use_features
         self.activation_fn = activation_fn
         self.single_output = single_output
-        self.num_classes = 1000
+        self.num_classes = models[0].num_classes
         self.models = models if isinstance(models, nn.ModuleList) else nn.ModuleList(models)
 
         if use_features:
@@ -80,20 +84,20 @@ class MultiTaskEnsemble(nn.Module):
                 self.in_features += m.num_features
         else:
             self.in_features = len(self.models) * self.num_classes
-        self.classif_true_class = nn.Linear(self.in_features, self.num_classes)
+        self.classif_true = nn.Linear(self.in_features, self.num_classes)
 
         if not use_features:
             fact = 1. / len(self.models)
             wc = torch.cat([torch.eye(self.num_classes, self.num_classes) * fact] * len(self.models), dim=1)
-            self.classif_true_class.weight.data = wc
+            self.classif_true.weight.data = wc
 
         if use_adv_classif:
             if use_features:
-                self.classif_adv_class = nn.Linear(self.in_features, self.num_classes)
+                self.classif_adv = nn.Linear(self.in_features, self.num_classes)
             else:
-                self.classif_adv_class = deepcopy(self.classif_true_class)
+                self.classif_adv = deepcopy(self.classif_true)
         else:
-            self.classif_adv_class = None
+            self.classif_adv = None
 
         if use_is_adv:
             self.classif_is_adv = nn.Linear(self.in_features, 2)
@@ -106,18 +110,19 @@ class MultiTaskEnsemble(nn.Module):
         else:
             outputs = [model(x) for model in self.models]
         output = torch.cat(outputs, 1)
-
+        print(self.classif_true.weight.size())
+        print(output.size())
         if self.activation_fn is not None:
             output = self.activation_fn(output)
 
-        output_true = self.classif_true_class(output)
+        output_true = self.classif_true(output)
         output_multi = OrderedDict({'class_true': output_true})
 
         if self.single_output:
             return output_true
 
-        if self.classif_adv_class is not None:
-            output_adv = self.classif_adv_class(output)
+        if self.classif_adv is not None:
+            output_adv = self.classif_adv(output)
             output_multi['class_adv'] = output_adv
 
         if self.classif_is_adv is not None:
@@ -128,11 +133,11 @@ class MultiTaskEnsemble(nn.Module):
 
         return tuple(output_multi.values())
 
-    def classifier_params(self):
+    def classifier_parameters(self):
         params = []
-        params += self.classif_true_class.parameters()
-        if self.classif_adv_class is not None:
-            params += self.classif_adv_class.parameters()
+        params += self.classif_true.parameters()
+        if self.classif_adv is not None:
+            params += self.classif_adv.parameters()
         if self.classif_is_adv is not None:
             params += self.classif_is_adv.parameters()
         return params

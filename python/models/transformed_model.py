@@ -30,6 +30,10 @@ class TransformedModel(nn.Module):
         self.model = model
         if hasattr(model, 'num_features'):
             self.num_features = model.num_features
+        if hasattr(model, 'num_classes'):
+            self.num_classes = model.num_classes
+            if drop_first_class:
+                self.num_classes -= 1
         self.drop_first_class = drop_first_class
 
         pre = OrderedDict()
@@ -44,6 +48,14 @@ class TransformedModel(nn.Module):
             post['output_fn'] = get_output_fn(output_fn)
         self.post = nn.Sequential(post) if post else None
 
+    def get_classifier(self):
+        return self.model.get_classifier()
+
+    def forward_features(self, x, pool=True):
+        if self.pre is not None:
+            x = self.pre(x)
+        return self.model.forward_features(x, pool)
+
     def forward(self, x):
         if self.pre is not None:
             x = self.pre(x)
@@ -52,12 +64,6 @@ class TransformedModel(nn.Module):
             o = o[:, 1:]
         if self.post is not None:
             o = self.post(o)
-        return o
-
-    def forward_features(self, x):
-        if self.pre is not None:
-            x = self.pre(x)
-        o = self.model.forward_features(x)
         return o
 
     def get_core_model(self):
