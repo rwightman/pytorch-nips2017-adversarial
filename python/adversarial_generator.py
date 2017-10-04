@@ -30,32 +30,38 @@ def attack_factory(model, cfg):
 
 class AdversarialGenerator:
 
-    def __init__(self, loader, output_batch_size=8, input_devices=[0], master_output_device=None):
+    def __init__(
+            self,
+            loader,
+            model_cfgs,
+            attack_cfgs,
+            attack_probs=None,
+            output_batch_size=8,
+            input_devices=[0],
+            master_output_device=None):
+
         self.loader = loader
-        self.attack_cfgs = [
-            {'attack_name': 'iterative', 'targeted': True, 'num_steps': 10, 'target_rand': True},
-            {'attack_name': 'iterative', 'targeted': False, 'num_steps': 1, 'random_start': True},
-            {'attack_name': 'cw_inspired', 'targeted': True, 'n_iter': 38},
-            {'attack_name': 'cw_inspired', 'targeted': False, 'n_iter': 38},
-        ]
-        self.attack_probs = [0.4, 0.4, 0.1, 0.1]
-        self.model_cfgs = [  # FIXME these are currently just test configs, need to setup properly
-            {'models': ['inception_v3_tf']},
-            {'models': ['inception_resnet_v2', 'resnet34'], 'weights': [1.0, 1.0]},
-            {'models': ['adv_inception_resnet_v2', 'inception_v3_tf']},
-        ]
+        self.model_cfgs = model_cfgs
+        self.attack_cfgs = attack_cfgs
+        self.attack_probs = attack_probs or [1/len(attack_cfgs)] * len(attack_cfgs)
         self.max_epsilons = np.array([8., 12., 16.])
         self.max_epsilon_probs = None
         self.models = []
         self.model_idx = None
-        self.target_model = None
-        self.attack_idx = 0
+        self.dogfood_model_idx = None
+        self.target_model = None  # deep copy of currently targeted model, loaded onto GPU
+        self.model_count = 0 # number of model transitions
+        self.attack_count = 0 # number of attack transitions
+
         self.input_batch_size = loader.batch_size
         self.output_batch_size = output_batch_size
         self.input_devices = input_devices
         self.master_input_device = input_devices[0]
         self.master_output_device = master_output_device
+
         self.normal_sample_ratio = 0.5
+        self.model_change_cycle = 5
+        self.dogfood_cycle = 2
 
         self._load_models()
 
@@ -69,13 +75,25 @@ class AdversarialGenerator:
 
     def _next_model(self):
         next_idx = inc_roll(self.model_idx, len(self.models))
+        dogfood = False
+        if self.dogfood_model_idx is not None:
+            c = self.model_count // len(self.models) + 1
+            if next_idx == self.dogfood_model_idx:
+                if c % self.dogfood_cycle != 0:
+                    next_idx = inc_roll(next_idx, len(self.models))
+                else:
+                    dogfood = True
 
-        if self.model_idx != next_idx:
+        # NOTE: dogfood model needs to be recopied on dogfood cycle even
+        # if it's the only model as params change
+        if dogfood or self.model_idx != next_idx:
             # delete current target_model with params on GPU
             if self.target_model is not None:
                 del self.target_model
 
             # deep copy next model params from CPU to CPU
+            # FIXME TBD, if model is dogfood on another GPU, 
+            # does deepcopy work or double the defense GPU mem usage before cuda to attack GPU?
             model = deepcopy(self.models[next_idx])
 
             # move next model params to GPU
@@ -87,14 +105,18 @@ class AdversarialGenerator:
             self.model_idx = next_idx
             self.target_model = model
 
+        self.model_count += 1
+
     def _next_attack(self):
-        self._next_model()  # FIXME we could change the model every n attacks?
+        if self.target_model is None or self.attack_count % self.model_change_cycle == 0:
+            self._next_model()
         attack_idx = np.random.choice(range(len(self.attack_cfgs)), p=self.attack_probs)
         cfg = deepcopy(self.attack_cfgs[attack_idx])
         if 'max_epsilon' not in cfg:
             cfg['max_epsilon'] = np.random.choice(self.max_epsilons, p=self.max_epsilon_probs)
         with torch.cuda.device(self.master_input_device):
             attack = attack_factory(self.target_model, cfg)
+        self.attack_count += 1
         return attack
 
     def _initialize_outputs(self, image_shape=(3, 299, 299)):
@@ -174,6 +196,14 @@ class AdversarialGenerator:
 
     def __len__(self):
         return len(self.loader) * self._input_factor()
+
+    def set_dogfood(self, model):
+        if self.dogfood_model_idx is not None:
+            # only one dogfood model allowed, replace existing
+            self.models[self.dogfood_model_idx] = model
+        else:
+            self.models.append(model)
+            self.dogfood_model_idx = len(self.models) - 1
 
 
 def inc_roll(index, length=1):

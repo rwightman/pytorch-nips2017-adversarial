@@ -51,6 +51,8 @@ parser.add_argument('--mt', action='store_true', default=False,
                     help='multi-task defense objective')
 parser.add_argument('--co', action='store_true', default=False,
                     help='optimize only defense classifier(s) parameters')
+parser.add_argument('--df', action='store_true', default=False,
+                    help='dogfood attack with defense model')
 
 
 def train(args, train_loader, model, criterion, optimizer, epoch):
@@ -235,14 +237,30 @@ def main():
         batch_size=args.batch_size, shuffle=True,
         num_workers=args.workers, pin_memory=True)
 
-    adv_dataset = AdversarialGenerator(
+    attack_cfgs = [
+        {'attack_name': 'iterative', 'targeted': True, 'num_steps': 10, 'target_rand': True},
+        {'attack_name': 'iterative', 'targeted': False, 'num_steps': 1, 'random_start': True},
+        {'attack_name': 'cw_inspired', 'targeted': True, 'n_iter': 38},
+        {'attack_name': 'cw_inspired', 'targeted': False, 'n_iter': 38},
+    ]
+
+    attack_model_cfgs = [  # FIXME these are currently just test configs, need to setup properly
+        {'models': ['inception_v3_tf']},
+        {'models': ['inception_resnet_v2', 'resnet34'], 'weights': [1.0, 1.0]},
+        {'models': ['adv_inception_resnet_v2', 'inception_v3_tf']},
+    ]
+
+    adv_generator = AdversarialGenerator(
         train_loader,
+        model_cfgs=attack_model_cfgs,
+        attack_cfgs=attack_cfgs,
+        attack_probs=[0.4, 0.4, 0.1, 0.1],
         output_batch_size=args.batch_size,
         input_devices=input_devices,
         master_output_device=master_output_device)
 
     if args.mp:
-        adv_dataset = MpFeeder(adv_dataset, maxsize=8)
+        adv_generator = MpFeeder(adv_generator, maxsize=8)
 
     val_dataset = datasets.ImageFolder(val_dir, transforms.Compose([
             transforms.Scale(int(math.floor(args.img_size / 0.875))),
@@ -275,6 +293,9 @@ def main():
             defense_model = torch.nn.DataParallel(defense_model, output_devices).cuda()
         else:
             defense_model.cuda()
+
+        if args.df:
+            adv_generator.set_dogfood(defense_model)
 
         if args.opt == 'sgd':
             optimizer = torch.optim.SGD(
@@ -316,7 +337,7 @@ def main():
             adjust_learning_rate(args.lr, optimizer, epoch, decay_epochs=args.decay_epochs)
 
             # train for one epoch
-            train(args, adv_dataset, defense_model, criterion, optimizer, epoch)
+            train(args, adv_generator, defense_model, criterion, optimizer, epoch)
 
             # evaluate on validation set
             prec1 = validate(args, val_loader, defense_model, criterion)
@@ -337,8 +358,8 @@ def main():
                 filename='checkpoint-%d.pth.tar' % epoch)
 
     if args.mp:
-        adv_dataset.shutdown()
-        adv_dataset.done()
+        adv_generator.shutdown()
+        adv_generator.done()
 
 
 def save_checkpoint(state, is_best, filename='checkpoint.pth.tar'):
