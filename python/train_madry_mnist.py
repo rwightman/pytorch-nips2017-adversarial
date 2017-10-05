@@ -8,13 +8,12 @@ import numpy as np
 import time
 
 from models import Ensemble
+from models import create_model_from_cfg, create_ensemble
 from models.mnist.networks import MadryNet, PytorchExampleNet
 
 from processing import Affine, RandomGaussianBlur, RandomShift, Normalize
 from attacks.iterative import AttackIterative
 from attacks.cw_inspired import CWInspired
-
-assert False
 
 seed = 1
 batch_size = 256
@@ -24,7 +23,6 @@ n_epochs = 30
 
 torch.manual_seed(seed)
 torch.cuda.manual_seed(seed)
-
 
 train_loader = torch.utils.data.DataLoader(
     datasets.MNIST('../data', train=True, download=True,
@@ -114,11 +112,11 @@ def generate_numpy_file(target, attack):
 
     return np.concatenate(output)
 
-model = MadryNet()
+model = create_model_from_cfg({'model_name':'madry', 'checkpoint_file':None}, dataset='mnist')
 model.cuda()
 train_model(model, n_epochs=30, save_path='madry_natural1.pth')
 
-model = PytorchExampleNet()
+model = create_model_from_cfg({'model_name':'pytorch-example', 'checkpoint_file':None}, dataset='mnist')
 model.cuda()
 train_model(model, n_epochs=30, save_path='pt-ex1.pth')
 
