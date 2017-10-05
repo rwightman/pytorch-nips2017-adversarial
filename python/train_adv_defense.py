@@ -242,10 +242,7 @@ def main():
         {'attack_name': 'cw_inspired', 'targeted': False, 'n_iter': 10, 'lr': 0.5},
     ]
 
-    madry_natural = create_model_from_cfg({'model_name': 'madry'}, checkpoint_path='madry_natural1.pth',
-                                          dataset='mnist')
-    pytex_natural = create_model_from_cfg({'model_name': 'pytorch-example'}, checkpoint_path='pt-ex1.pth',
-                                          dataset='mnist')
+    mnist_madry_untrained = create_model_from_cfg({'model_name': 'madry', 'checkpoint_file':None}, dataset='mnist')
 
     adv_generator = AdversarialGenerator(
         train_loader,
@@ -256,7 +253,7 @@ def main():
         input_devices=input_devices,
         master_output_device=master_output_device)
 
-    adv_generator.models = [madry_natural, pytex_natural]
+    adv_generator.models = [mnist_madry_untrained]
 
     if args.mp:
         adv_generator = MpFeeder(adv_generator, maxsize=8)
