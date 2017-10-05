@@ -18,7 +18,10 @@ def attack_factory(model, cfg):
     if attack_name == 'iterative':
         attack = AttackIterative(model, **cfg)
     elif attack_name == 'cw_inspired':
-        augmentation = processing.build_anp_augmentation_module()
+        n_channels = None
+        if 'n_channels' in cfg:
+            n_channels = cfg.pop('n_channels')
+        augmentation = processing.build_anp_augmentation_module(n_channels=n_channels)
         augmentation = augmentation.cuda()
         attack = CWInspired(model, augmentation, **cfg)
     elif attack_name == 'selective_universal':

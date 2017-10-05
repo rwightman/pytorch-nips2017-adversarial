@@ -22,7 +22,7 @@ def create_model(
     if output_fn:
         model = TransformedModel(
             model=model,
-            input_size=None,
+            input_size=28,
             normalizer=Normalize((0.1307,), (0.3081,)),
             output_fn=output_fn
         )

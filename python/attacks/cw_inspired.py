@@ -25,10 +25,12 @@ class PerturbationNet(nn.Module):
 
     def forward(self, x):
         perturbed = x + PerturbationNet.delta(self.w_matrix, x, self.epsilon)
+
         if np.random.rand() < self.prob_dont_augment:
             augmented = perturbed
         else:
             augmented = self.defense_augmentation(perturbed)
+
         output = self.defense_ensemble(augmented)
         return output
 
@@ -94,7 +96,7 @@ class CWInspired(object):
         self.perturbation_model.set_w_matrix(autograd.Variable(torch.zeros(input.size()).cuda(),requires_grad=True))
         if not self.targeted:
             if self.always_target is not None:
-                target = torch.LongTensor(np.repeat(self.always_target,this_batch_size))
+                target = torch.LongTensor(np.repeat(self.always_target, this_batch_size))
             else:
                 log_probs_var = self.perturbation_model(input_var)
                 log_probs = log_probs_var.data.cpu().numpy()

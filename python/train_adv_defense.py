@@ -238,11 +238,12 @@ def main():
     attack_cfgs = [
         {'attack_name': 'iterative', 'targeted': True, 'num_steps': 10, 'target_rand': True},
         {'attack_name': 'iterative', 'targeted': False, 'num_steps': 1, 'random_start': True},
-        {'attack_name': 'cw_inspired', 'targeted': True, 'n_iter': 10, 'lr': 0.5},
-        {'attack_name': 'cw_inspired', 'targeted': False, 'n_iter': 10, 'lr': 0.5},
+        {'attack_name': 'cw_inspired', 'targeted': True, 'n_iter': 10, 'lr': 0.5, 'n_channels': 1},
+        {'attack_name': 'cw_inspired', 'targeted': False, 'n_iter': 10, 'lr': 0.5, 'n_channels': 1},
     ]
 
-    mnist_madry_untrained = create_model_from_cfg({'model_name': 'madry', 'checkpoint_file':None}, dataset='mnist')
+    mnist_madry_untrained = create_model_from_cfg(
+        {'model_name': 'madry', 'checkpoint_file': None}, dataset='mnist')
 
     adv_generator = AdversarialGenerator(
         train_loader,
@@ -260,7 +261,8 @@ def main():
 
     with torch.cuda.device(master_output_device):
         defense_ensemble = [True]
-        defense_model = create_model_from_cfg({'model_name':'madry', 'checkpoint_file':None}, dataset='mnist')
+        defense_model = create_model_from_cfg(
+            {'model_name': 'madry', 'checkpoint_file': None}, dataset='mnist')
 
         if args.mt:
             if len(defense_ensemble) > 1:

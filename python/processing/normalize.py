@@ -17,11 +17,11 @@ def get_normalizer(name):
 class Normalize(nn.Module):
     def __init__(self, mean, std):
         super(Normalize, self).__init__()
-        self.mean = autograd.Variable(torch.FloatTensor(mean)).view(-1, 1, 1).cuda()
-        self.std = autograd.Variable(torch.FloatTensor(std)).view(-1, 1, 1).cuda()
+        self.register_buffer('mean', torch.FloatTensor(mean).view(-1, 1, 1))
+        self.register_buffer('std', torch.FloatTensor(std).view(-1, 1, 1))
 
     def forward(self, x):
-        return (x - self.mean) / self.std
+        return (x - autograd.Variable(self.mean)) / autograd.Variable(self.std)
 
 
 class NormalizeLe(nn.Module):

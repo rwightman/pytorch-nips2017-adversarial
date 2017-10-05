@@ -61,6 +61,7 @@ def build_anp_augmentation_module(
         gaus_blur_prob=0.5,
         gaus_blur_size=3,
         gaus_blur_sigma=.5,
+        n_channels=3,
         brightness_contrast=False,
         saturation=False):
     modules = [RandomMirror(mirror_prob)]
@@ -69,9 +70,10 @@ def build_anp_augmentation_module(
     if saturation:
         modules.append(RandomSaturation())
     modules.extend([
-        RandomGaussianBlur(gaus_blur_prob, gaus_blur_size, gaus_blur_sigma),
+        RandomGaussianBlur(gaus_blur_prob, gaus_blur_size, gaus_blur_sigma, n_channels=n_channels),
         RandomCrop()
     ])
+    print(modules)
     return nn.Sequential(*modules)
 
 

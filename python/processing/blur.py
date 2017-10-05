@@ -11,8 +11,8 @@ class RandomBlur(nn.Module):
         self.blur_prob = blur_prob
         self.blur2x2_prob = blur2x2_prob
 
-        self.median_pool_2x2 = MedianPool2d(kernel_size=2, same=True).cuda()
-        self.median_pool_3x3 = MedianPool2d(kernel_size=3, same=True).cuda()
+        self.median_pool_2x2 = MedianPool2d(kernel_size=2, same=True)
+        self.median_pool_3x3 = MedianPool2d(kernel_size=3, same=True)
 
     def forward(self, x):
         perform_blur = np.random.rand() < self.blur_prob
@@ -32,7 +32,7 @@ class Blur(nn.Module):
     def __init__(self, k):
         k = k or 3
         super(Blur, self).__init__()
-        self.median_pool = MedianPool2d(kernel_size=k, same=True).cuda()
+        self.median_pool = MedianPool2d(kernel_size=k, same=True)
 
     def forward(self, x):
         blurred = self.median_pool(x)
@@ -43,7 +43,7 @@ class RandomGaussianBlur(nn.Module):
     def __init__(self, prob_blur, size, sigma, n_channels=None):
         super(RandomGaussianBlur, self).__init__()
         self.prob_blur = prob_blur
-        self.gaussian_blur = GaussianBlur(size, sigma, n_channels = n_channels)
+        self.gaussian_blur = GaussianBlur(size, sigma, n_channels=n_channels)
 
     def forward(self, x):
         do_blur = np.random.rand() < self.prob_blur
@@ -57,7 +57,6 @@ class GaussianBlur(nn.Module):
     def __init__(self, kernel_size, sigma=None, same=True, n_channels=None, trainable=False):
         super(GaussianBlur, self).__init__()
         self.n_channels = n_channels or 3
-
         kernel_size = kernel_size or 3
         sigma = sigma or 0.5
         self.same = same
@@ -69,7 +68,7 @@ class GaussianBlur(nn.Module):
             sigma=sigma
         )
 
-        convolution_weight_numpy = np.stack([kernel[None, :, :] for _ in range(n_channels)])
+        convolution_weight_numpy = np.stack([kernel[None, :, :] for _ in range(self.n_channels)])
 
         self.trainable = trainable
         if trainable:
