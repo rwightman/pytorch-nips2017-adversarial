@@ -73,7 +73,6 @@ def build_anp_augmentation_module(
         RandomGaussianBlur(gaus_blur_prob, gaus_blur_size, gaus_blur_sigma, n_channels=n_channels),
         RandomCrop()
     ])
-    print(modules)
     return nn.Sequential(*modules)
 
 
