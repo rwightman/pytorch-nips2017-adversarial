@@ -17,8 +17,6 @@ from mp_feeder import MpFeeder
 from defenses import multi_task
 
 parser = argparse.ArgumentParser(description='PyTorch ImageNet Training')
-parser.add_argument('data', metavar='DIR',
-                    help='path to dataset')
 parser.add_argument('--mp', action='store_true', default=False,
                     help='multi-process training, attack and defense in separate processes')
 parser.add_argument('--num-gpu', default=1, type=int, metavar='N',
@@ -53,6 +51,7 @@ parser.add_argument('--co', action='store_true', default=False,
                     help='optimize only defense classifier(s) parameters')
 parser.add_argument('--df', action='store_true', default=False,
                     help='dogfood attack with defense model')
+parser.add_argument('--batch_size', type=int, default=32)
 
 
 def train(args, train_loader, model, criterion, optimizer, epoch):
@@ -224,62 +223,47 @@ def main():
 
     master_output_device = output_devices[0]
 
-    train_dir = os.path.join(args.data, 'train')
-    val_dir = os.path.join(args.data, 'validation')
-
-    train_dataset = datasets.ImageFolder(train_dir,  transforms.Compose([
-            transforms.RandomSizedCrop(args.img_size),
-            transforms.RandomHorizontalFlip(),
-            transforms.ToTensor()]))
-
     train_loader = torch.utils.data.DataLoader(
-        train_dataset,
-        batch_size=args.batch_size, shuffle=True,
-        num_workers=args.workers, pin_memory=True)
+        datasets.MNIST('../data', train=True, download=True,
+                       transform=transforms.Compose([
+                           transforms.ToTensor(),
+                       ])),
+        batch_size=args.batch_size, shuffle=True, num_workers=1, pin_memory=True)
+    val_loader = torch.utils.data.DataLoader(
+        datasets.MNIST('../data', train=False, transform=transforms.Compose([
+            transforms.ToTensor(),
+        ])),
+        batch_size=args.batch_size, shuffle=False, num_workers=1, pin_memory=True)
 
     attack_cfgs = [
         {'attack_name': 'iterative', 'targeted': True, 'num_steps': 10, 'target_rand': True},
         {'attack_name': 'iterative', 'targeted': False, 'num_steps': 1, 'random_start': True},
-        {'attack_name': 'cw_inspired', 'targeted': True, 'n_iter': 38},
-        {'attack_name': 'cw_inspired', 'targeted': False, 'n_iter': 38},
+        {'attack_name': 'cw_inspired', 'targeted': True, 'n_iter': 10, 'lr': 0.5},
+        {'attack_name': 'cw_inspired', 'targeted': False, 'n_iter': 10, 'lr': 0.5},
     ]
 
-    attack_model_cfgs = [  # FIXME these are currently just test configs, need to setup properly
-        {'models': ['inception_v3_tf']},
-        {'models': ['inception_resnet_v2', 'resnet34'], 'weights': [1.0, 1.0]},
-        {'models': ['adv_inception_resnet_v2', 'inception_v3_tf']},
-    ]
+    madry_natural = create_model_from_cfg({'model_name': 'madry'}, checkpoint_path='madry_natural1.pth',
+                                          dataset='mnist')
+    pytex_natural = create_model_from_cfg({'model_name': 'pytorch-example'}, checkpoint_path='pt-ex1.pth',
+                                          dataset='mnist')
 
     adv_generator = AdversarialGenerator(
         train_loader,
-        model_cfgs=attack_model_cfgs,
+        model_cfgs=[],
         attack_cfgs=attack_cfgs,
         attack_probs=[0.4, 0.4, 0.1, 0.1],
         output_batch_size=args.batch_size,
         input_devices=input_devices,
         master_output_device=master_output_device)
 
+    adv_generator.models = [madry_natural, pytex_natural]
+
     if args.mp:
         adv_generator = MpFeeder(adv_generator, maxsize=8)
 
-    val_dataset = datasets.ImageFolder(val_dir, transforms.Compose([
-            transforms.Scale(int(math.floor(args.img_size / 0.875))),
-            transforms.CenterCrop(args.img_size),
-            transforms.ToTensor()
-        ]))
-
-    val_loader = torch.utils.data.DataLoader(
-        val_dataset,
-        batch_size=args.batch_size, shuffle=False,
-        num_workers=args.workers, pin_memory=True)
-
     with torch.cuda.device(master_output_device):
-        defense_ensemble = ['adv_inception_resnet_v2', 'dpn68b_extra'] #FIXME argument
-        defense_cfgs = [config_from_string(s, output_fn='') for s in defense_ensemble]
-        if len(defense_ensemble) > 1:
-            defense_model = create_ensemble(defense_cfgs, None)
-        else:
-            defense_model = create_model_from_cfg(defense_cfgs[0])
+        defense_ensemble = [True]
+        defense_model = create_model_from_cfg({'model_name':'madry', 'checkpoint_file':None}, dataset='mnist')
 
         if args.mt:
             if len(defense_ensemble) > 1:
