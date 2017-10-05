@@ -1,9 +1,0 @@
-{
-    "name": "selective_universal",
-    "attack_type": "attack",
-    "run_cmd": "run_selective_universal",
-    "ensemble": ["adv_inception_resnet_v2", "inception_v3_tf"],
-    "ensemble_weights": ["1.0", "1.0"],
-    "npy_files": ["brain_coral.npy", "crt.npy", "jigsaw.npy", "jigsaw2.npy", "jigsaw3.npy", "jigsaw4.npy", "monitor.npy", "spider_web.npy", "tv.npy"],
-    "runargs": []
-}
