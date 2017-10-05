@@ -10,42 +10,6 @@ from .dpn import dpn68, dpn68b, dpn92, dpn98, dpn131, dpn107
 from .transformed_model import TransformedModel
 from .load_checkpoint import load_checkpoint
 
-model_name_normalizer_name_mapping = {
-    'dpn68': 'dualpathnet',
-    'dpn68b': 'dualpathnet',
-    'dpn92': 'dualpathnet',
-    'dpn131': 'dualpathnet',
-    'dpn107': 'dualpathnet',
-    'resnet18': 'torchvision',
-    'resnet34': 'torchvision',
-    'resnet50': 'torchvision',
-    'resnet101': 'torchvision',
-    'resnet152': 'torchvision',
-    'resnet18-torchvision': 'torchvision',
-    'resnet34-torchvision': 'torchvision',
-    'resnet50-torchvision': 'torchvision',
-    'resnet101-torchvision': 'torchvision',
-    'resnet152-torchvision': 'torchvision',
-    'densenet121': 'torchvision',
-    'densenet161': 'torchvision',
-    'densenet169': 'torchvision',
-    'densenet201': 'torchvision',
-    'densenet121-torchvision': 'torchvision',
-    'densenet161-torchvision': 'torchvision',
-    'densenet169-torchvision': 'torchvision',
-    'densenet201-torchvision': 'torchvision',
-    'squeezenet1_0': 'torchvision',
-    'squeezenet1_1': 'torchvision',
-    'alexnet': 'torchvision',
-    'inception_v3': 'le',
-    'inception_resnet_v2': 'le',
-    'inception_v4': 'le',
-    'resnext101_32x4d': 'torchvision',
-    'wrn50': 'torchvision',
-    'fbresnet200': 'torchvision'
-}
-
-
 def create_model(
         model_name='resnet50',
         pretrained=False,

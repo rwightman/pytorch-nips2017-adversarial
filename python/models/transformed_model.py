@@ -34,7 +34,12 @@ class TransformedModel(nn.Module):
         if input_size:
             pre['resize'] = processing.Resize(input_size)
         if normalizer:
-            pre['normalize'] = processing.get_normalizer(normalizer)
+            if isinstance(normalizer, str):
+                pre['normalize'] = processing.get_normalizer(normalizer)
+            elif isinstance(normalizer, nn.Module):
+                pre['normalize'] = normalizer
+            else:
+                raise ValueError('Must be a string or a nn.Module')
         self.pre = nn.Sequential(pre) if pre else None
 
         post = OrderedDict()
