@@ -73,15 +73,15 @@ class GaussianBlur(nn.Module):
 
         self.trainable = trainable
         if trainable:
-            self.weight = nn.Parameter(torch.FloatTensor(convolution_weight_numpy))
+            self.weight = nn.Parameter(torch.FloatTensor(convolution_weight_numpy).cuda())
         else:
-            self.register_buffer('weight', torch.FloatTensor(convolution_weight_numpy))
+            self.register_buffer('weight', torch.FloatTensor(convolution_weight_numpy).cuda())
 
     def forward(self, x):
         blurred = F.conv2d(
             self.padding(x) if self.same else x,
             self.weight if self.trainable else torch.autograd.Variable(self.weight),
-            stride=1, padding=0, groups=3)
+            stride=1, padding=0, groups=self.n_channels)
         return blurred
 
 
