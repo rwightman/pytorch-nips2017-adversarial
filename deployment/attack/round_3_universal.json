@@ -1,6 +1,0 @@
-{
-    "name": "round_3_universal",
-    "attack_type": "attack",
-    "run_cmd": "run_universal_perturbation",
-    "npy_file": "jigsaw.npy"
-}

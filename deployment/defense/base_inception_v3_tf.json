@@ -1,6 +1,0 @@
-{
-  "name": "base_inception_v3_tf",
-  "run_cmd": "run_base",
-  "ensemble": ["inception_v3_tf"],
-  "ensemble_weights": ["1.0"]
-}
