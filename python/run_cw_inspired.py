@@ -20,7 +20,7 @@ parser.add_argument('--max_epsilon', type=int, default=16, metavar='N',
 parser.add_argument('--ensemble', nargs='+', help='Class names for the defensive ensemble.')
 parser.add_argument('--ensemble_weights', nargs='+', type=float,
                     help='Weights for weighted geometric mean of output probs')
-parser.add_argument('--checkpoint_paths', nargs='+', help='Paths to checkpoint files for each model.')
+parser.add_argument('--checkpoint_paths', nargs='+', help='Paths to checkpoint files for each target_model.')
 parser.add_argument('--n_iter', type=int, default=100,
                     help='Number of iterations in optimization')
 parser.add_argument('--target_nth_highest', type=int, default=6,
@@ -57,18 +57,13 @@ def main():
     if args.no_augmentation:
         augmentation = lambda x: x
     else:
-        modules = [
-            processing.RandomMirror(0.5)
-        ]
-        if args.brightness_contrast:
-            modules.append(processing.RandomBrightnessContrast())
-        if args.saturation:
-            modules.append(processing.RandomSaturation())
-        modules.extend([
-            processing.RandomGaussianBlur(args.gaus_blur_prob, args.gaus_blur_size, args.gaus_blur_sigma),
-            processing.RandomCrop()
-        ])
-        augmentation = nn.Sequential(*modules)
+        augmentation = processing.build_anp_augmentation_module(
+            saturation=args.saturation,
+            brightness_contrast=args.brightness_contrast,
+            gaus_blur_prob=args.gaus_blur_prob,
+            gaus_blur_size=args.gaus_blur_size,
+            gaus_blur_sigma=args.gaus_blur_sigma
+        ).cuda()
 
     if args.targeted:
         dataset = Dataset(args.input_dir)

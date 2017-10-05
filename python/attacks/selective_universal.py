@@ -11,14 +11,14 @@ from processing import Mirror
 
 class SelectiveUniversal(object):
     def __init__(self,
-                 max_epsilon,
                  target_ensemble,
                  w_matrix_files,
+                 max_epsilon=16,
                  try_mirrors=False):
         super(SelectiveUniversal, self).__init__()
-        self.max_epsilon = max_epsilon
         self.target_ensemble = target_ensemble
         self.w_matrix_files = w_matrix_files
+        self.max_epsilon = max_epsilon
         self.nllloss = torch.nn.NLLLoss().cuda()
 
         self.w_matrices = [torch.tanh(torch.FloatTensor((np.load(f))).cuda()) for f in self.w_matrix_files]
@@ -63,6 +63,5 @@ class SelectiveUniversal(object):
                     else:
                         best_is_fooled = False
 
-
-        return np.transpose(best_perturbed, axes=(0, 2, 3, 1)), None, best_is_fooled
+        return best_perturbed, None, best_is_fooled
 

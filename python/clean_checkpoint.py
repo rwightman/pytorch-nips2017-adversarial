@@ -27,16 +27,13 @@ parser.add_argument('--model', '-m', metavar='MODEL', default='densenet121',
 def main():
     args = parser.parse_args()
 
-    model = create_model(args.model, pretrained=False)
-    model = model.cuda()
-
     module_prefix = 'module.'
     module_prefx_len = len(module_prefix)
 
     checkpoint_file = args.input_file
     if os.path.isfile(args.input_file):
         print("=> loading checkpoint '{}'".format(args.input_file))
-        checkpoint = torch.load(args.input_file)
+        checkpoint = torch.load(args.input_file, map_location=lambda storage, loc: storage)
 
         clean_checkpoint = {}
         for k, v in checkpoint['state_dict'].items():

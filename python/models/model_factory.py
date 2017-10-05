@@ -118,7 +118,7 @@ def create_model(
         model = torchvision.models.densenet201(num_classes=num_classes, pretrained=pretrained, **kwargs)
     elif model_name == 'inception_v3':
         model = torchvision.models.inception_v3(
-            num_classes=num_classes, pretrained=pretrained, transform_input=False, **kwargs)
+            num_classes=num_classes, pretrained=pretrained, transform_input=False, aux_logits=False)
     elif model_name == 'inception_resnet_v2':
         model = inception_resnet_v2(num_classes=num_classes, pretrained=pretrained, **kwargs)
     elif model_name == 'inception_v4':
@@ -152,3 +152,20 @@ def create_model(
 
     return model
 
+
+def create_model_from_cfg(mc, checkpoint_path=''):
+    if 'kwargs' not in mc:
+        mc['kwargs'] = {}
+
+    model = create_model(
+        model_name=mc['model_name'],
+        num_classes=mc['num_classes'],
+        input_size=mc['input_size'],
+        normalizer=mc['normalizer'],
+        output_fn=mc['output_fn'],
+        drop_first_class=mc['drop_first_class'],
+        checkpoint_path=checkpoint_path if checkpoint_path else mc['checkpoint_file'],
+        **mc['kwargs']
+    )
+
+    return model

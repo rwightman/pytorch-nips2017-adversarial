@@ -75,11 +75,11 @@ class CWInspired(object):
         ).cuda()
         self.loss_fn = torch.nn.NLLLoss().cuda()
 
-
     def __call__(self, input, target, batch_idx, deadline_time):
-        time_remaining = deadline_time - time.time()
-        assert time_remaining > 0
-        time_thresh = time_remaining * .1
+        if deadline_time:
+            time_remaining = deadline_time - time.time()
+            assert time_remaining > 0
+            time_thresh = time_remaining * .1
 
         input_var = autograd.Variable(input, volatile=False, requires_grad=True)
 
@@ -131,15 +131,16 @@ class CWInspired(object):
             loss.backward()
             optimizer.step()
 
-            time_remaining = deadline_time - time.time()
-            if i > 10 and time_remaining < time_thresh // 2:
-                print("Warning: breaking early at %d, time critical, %s remaining in batch."
-                      % (i, time_remaining))
-                sys.stdout.flush()
-                break
-            elif time_remaining < time_thresh:
-                print("Warning: time critical, %s remaining in batch." % time_remaining)
-                sys.stdout.flush()
+            if deadline_time:
+                time_remaining = deadline_time - time.time()
+                if i > 10 and time_remaining < time_thresh // 2:
+                    print("Warning: breaking early at %d, time critical, %s remaining in batch."
+                          % (i, time_remaining))
+                    sys.stdout.flush()
+                    break
+                elif time_remaining < time_thresh:
+                    print("Warning: time critical, %s remaining in batch." % time_remaining)
+                    sys.stdout.flush()
 
         final_change = PerturbationNet.delta(best_w_matrix, input_var, self.eps)
         final_change = torch.clamp(final_change, -self.eps, self.eps)  # Hygiene, math should mean this is already true
@@ -147,4 +148,4 @@ class CWInspired(object):
         final_image_tensor = input_var.data + final_change.data
         # Hygiene, math should mean this is already true
         final_image_tensor = torch.clamp(final_image_tensor, 0.0, 1.0)
-        return final_image_tensor.permute(0, 2, 3, 1), target, None
+        return final_image_tensor, target, None

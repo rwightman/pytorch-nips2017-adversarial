@@ -208,6 +208,7 @@ class InceptionResnetV2(nn.Module):
         super(InceptionResnetV2, self).__init__()
         self.drop_rate = drop_rate
         self.global_pool = global_pool
+        self.num_classes = num_classes
         self.conv2d_1a = BasicConv2d(3, 32, kernel_size=3, stride=2)
         self.conv2d_2a = BasicConv2d(32, 32, kernel_size=3, stride=1)
         self.conv2d_2b = BasicConv2d(32, 64, kernel_size=3, stride=1, padding=1)
@@ -265,17 +266,21 @@ class InceptionResnetV2(nn.Module):
         )
         self.block8 = Block8(noReLU=True)
         self.conv2d_7b = BasicConv2d(2080, 1536, kernel_size=1, stride=1)
-        #self.avgpool_1a = nn.AvgPool2d(8, count_include_pad=False)
+        self.num_features = 1536
         self.classif = nn.Linear(1536 * pooling_factor(global_pool), num_classes)
 
-    def get_fc(self):
+    def get_classifier(self):
         return self.classif
 
-    def reset_fc(self, num_classes, global_pool='avg'):
+    def reset_classifier(self, num_classes, global_pool='avg'):
         self.global_pool = global_pool
-        self.classif = torch.nn.Linear(1536 * pooling_factor(global_pool), num_classes)
+        self.num_classes = num_classes
+        if num_classes:
+            self.classif = torch.nn.Linear(1536 * pooling_factor(global_pool), num_classes)
+        else:
+            self.classif = None
 
-    def forward(self, x):
+    def forward_features(self, x, pool=True):
         x = self.conv2d_1a(x)
         x = self.conv2d_2a(x)
         x = self.conv2d_2b(x)
@@ -291,8 +296,13 @@ class InceptionResnetV2(nn.Module):
         x = self.repeat_2(x)
         x = self.block8(x)
         x = self.conv2d_7b(x)
-        x = adaptive_avgmax_pool2d(x, self.global_pool, count_include_pad=False)
-        x = x.view(x.size(0), -1)
+        if pool:
+            x = adaptive_avgmax_pool2d(x, self.global_pool, count_include_pad=False)
+            x = x.view(x.size(0), -1)
+        return x
+
+    def forward(self, x):
+        x = self.forward_features(x, pool=True)
         if self.drop_rate > 0:
             x = F.dropout(x, p=self.drop_rate, training=self.training)
         x = self.classif(x)

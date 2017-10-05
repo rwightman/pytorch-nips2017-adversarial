@@ -1203,6 +1203,7 @@ class ResNet200(nn.Module):
         super(ResNet200, self).__init__()
         self.drop_rate = drop_rate
         self.global_pool = global_pool
+        self.num_classes = num_classes
         self.features = fbresnet200_features(activation_fn=activation_fn)
         self.fc = nn.Linear(2048 * pooling_factor(global_pool), num_classes)
 
@@ -1213,17 +1214,23 @@ class ResNet200(nn.Module):
                 m.weight.data.fill_(1)
                 m.bias.data.zero_()
 
-    def get_fc(self):
+    def get_classifier(self):
         return self.fc
 
-    def reset_fc(self, num_classes, global_pool='avg'):
+    def reset_classifier(self, num_classes, global_pool='avg'):
         self.global_pool = global_pool
+        self.num_classes = num_classes
         self.fc = nn.Linear(2048 * pooling_factor(global_pool), num_classes)
 
-    def forward(self, input):
+    def forward_features(self, x, pool=True):
         x = self.features(input)
-        x = adaptive_avgmax_pool2d(x, self.global_pool)
-        x = x.view(x.size(0), -1)
+        if pool:
+            x = adaptive_avgmax_pool2d(x, self.global_pool)
+            x = x.view(x.size(0), -1)
+        return x
+
+    def forward(self, x):
+        x = self.forward_features(x)
         if self.drop_rate > 0:
             x = F.dropout(x, p=self.drop_rate, training=self.training)
         x = self.fc(x)

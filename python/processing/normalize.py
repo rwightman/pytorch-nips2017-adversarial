@@ -28,23 +28,23 @@ class NormalizeTorchvision(nn.Module):
 
     def __init__(self):
         super(NormalizeTorchvision, self).__init__()
-        self.mean = autograd.Variable(
-            torch.FloatTensor([0.485, 0.456, 0.406]).view(-1, 1, 1).cuda())
-        self.std = autograd.Variable(
-            torch.FloatTensor([0.229, 0.224, 0.225]).view(-1, 1, 1).cuda())
+
+        self.register_buffer('mean', torch.FloatTensor([0.485, 0.456, 0.406]).view(-1, 1, 1))
+        self.register_buffer('std', torch.FloatTensor([0.229, 0.224, 0.225]).view(-1, 1, 1))
 
     def forward(self, x):
-        return (x - self.mean) / self.std
+        return (x - autograd.Variable(self.mean)) / autograd.Variable(self.std)
 
 
 class NormalizeDpn(nn.Module):
 
     def __init__(self):
         super(NormalizeDpn, self).__init__()
-        self.mean = autograd.Variable(
-            torch.FloatTensor([124.0/255, 117.0/255, 104.0/255]).view(-1, 1, 1).cuda())
+        self.register_buffer('mean', torch.FloatTensor([124.0/255, 117.0/255, 104.0/255]).view(-1, 1, 1))
+        #self.mean = autograd.Variable(
+        #    torch.FloatTensor([124.0/255, 117.0/255, 104.0/255]).view(-1, 1, 1)) #.cuda())
         self.scale = 4.2585
 
     def forward(self, x):
-        return (x - self.mean) * self.scale
+        return (x - autograd.Variable(self.mean)) * self.scale
 

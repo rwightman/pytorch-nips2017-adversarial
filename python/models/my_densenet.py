@@ -127,7 +127,7 @@ class DenseNet(nn.Module):
     def __init__(self, growth_rate=32, block_config=(6, 12, 24, 16),
                  num_init_features=64, bn_size=4, drop_rate=0, num_classes=1000, global_pool='avg'):
         self.global_pool = global_pool
-
+        self.num_classes = num_classes
         super(DenseNet, self).__init__()
 
         # First convolution
@@ -160,18 +160,23 @@ class DenseNet(nn.Module):
 
         self.num_features = num_features
 
-    def get_fc(self):
+    def get_classifier(self):
         return self.classifier
 
-    def reset_fc(self, num_classes, global_pool='avg'):
+    def reset_classifier(self, num_classes, global_pool='avg'):
         self.global_pool = global_pool
+        self.num_classes = num_classes
         self.classifier = torch.nn.Linear(
             self.num_features * pooling_factor(global_pool), num_classes)
 
-    def forward(self, x):
+    def forward_features(self, x, pool=True):
         features = self.features(x)
         out = F.relu(features, inplace=True)
-        out = adaptive_avgmax_pool2d(out, self.global_pool)
-        out = out.squeeze()
-        out = self.classifier(out)
+        if pool:
+            out = adaptive_avgmax_pool2d(out, self.global_pool)
+            out = out.squeeze()
         return out
+
+    def forward(self, x):
+        return self.classifier(self.forward_features(x, pool=True))
+

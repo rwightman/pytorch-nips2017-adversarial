@@ -37,3 +37,9 @@ class Ensemble(nn.Module):
             raise ValueError('Invalid mean_method {}. Geometric and arithmetic only.'.format(mean_method))
 
         return mean_probs
+
+    def classifier_parameters(self):
+        params = []
+        for m in self.models:
+            params += m.get_classifier().parameters()
+        return params
