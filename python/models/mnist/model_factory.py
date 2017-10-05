@@ -1,7 +1,7 @@
 from .networks import MadryNet, PytorchExampleNet
 from ..load_checkpoint import load_checkpoint
 from ..transformed_model import TransformedModel
-#from ...processing import Normalize
+from ...processing import Normalize
 
 def create_model(
         model_name,
