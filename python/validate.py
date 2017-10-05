@@ -50,7 +50,7 @@ def main():
 
     # create model
     num_classes = 1000
-    if args.model == 'inception_resnet_v2' or args.model == 'inception_v4':
+    if 'inception' in args.model:
         num_classes = 1001
     model = create_model(
         args.model, num_classes=num_classes, pretrained=args.pretrained)

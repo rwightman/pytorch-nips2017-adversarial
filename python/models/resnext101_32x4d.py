@@ -8,6 +8,7 @@ import torch.nn as nn
 import torch.nn.init as init
 import torch.nn.functional as F
 from torch.autograd import Variable
+from .adaptive_avgmax_pool import *
 from functools import reduce
 
 
@@ -699,11 +700,11 @@ class ResNeXt101_32x4d(nn.Module):
 
     def __init__(self, num_classes=1000, activation_fn=nn.ReLU(), drop_rate=0, global_pool='avg'):
         self.drop_rate = drop_rate
+        self.num_classes = num_classes
         self.global_pool = global_pool
         super(ResNeXt101_32x4d, self).__init__()
         self.features = resnext_101_32x4d_features(activation_fn=activation_fn)
-        self.pool = nn.AdaptiveAvgPool2d(1)
-        assert global_pool == 'avg'  # other options not supported
+        self.num_features = 2048
         self.fc = nn.Linear(2048, num_classes)
 
         for m in self.modules():
@@ -713,10 +714,23 @@ class ResNeXt101_32x4d(nn.Module):
                 m.weight.data.fill_(1)
                 m.bias.data.zero_()
 
-    def forward(self, input):
+    def get_classifier(self):
+        return self.fc
+
+    def reset_classifier(self, num_classes, global_pool='avg'):
+        self.num_classes = num_classes
+        self.global_pool = global_pool
+        self.fc = nn.Linear(2048 * pooling_factor(global_pool), num_classes)
+
+    def forward_features(self, x, pool=True):
         x = self.features(input)
-        x = self.pool(x)
-        x = x.view(x.size(0), -1)
+        if pool:
+            x = adaptive_avgmax_pool2d(x, self.global_pool)
+            x = x.view(x.size(0), -1)
+        return x
+
+    def forward(self, x):
+        x = self.forward_features(x, pool=True)
         if self.drop_rate > 0:
             x = F.dropout(x, p=self.drop_rate, training=self.training)
         x = self.fc(x)

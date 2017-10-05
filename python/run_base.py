@@ -26,11 +26,8 @@ def main():
 
     cfgs = [config_from_string(s) for s in args.ensemble]
 
-    ensemble = create_ensemble(cfgs, args.ensemble_weights, checkpoint_paths=args.checkpoint_paths)
-
-    for model in ensemble.models:
-        model.get_core_model().cuda()
-        model.get_core_model().eval()
+    ensemble = create_ensemble(cfgs, args.ensemble_weights, checkpoint_paths=args.checkpoint_paths).cuda()
+    ensemble.eval()
 
     tf = transforms.Compose([
         transforms.Scale(args.img_size),

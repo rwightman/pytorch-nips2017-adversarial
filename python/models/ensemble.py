@@ -21,3 +21,9 @@ class Ensemble(nn.Module):
         mean_probs = o / sum(self.ensembling_weights)
 
         return mean_probs
+
+    def classifier_parameters(self):
+        params = []
+        for m in self.models:
+            params += m.get_classifier().parameters()
+        return params

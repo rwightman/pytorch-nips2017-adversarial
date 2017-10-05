@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from models.median_pool import MedianPool2d
 
 
@@ -53,7 +54,7 @@ class RandomGaussianBlur(nn.Module):
 
 
 class GaussianBlur(nn.Module):
-    def __init__(self, kernel_size, sigma=None, same=True, n_channels=None):
+    def __init__(self, kernel_size, sigma=None, same=True, n_channels=None, trainable=False):
         super(GaussianBlur, self).__init__()
         self.n_channels = n_channels or 3
 
@@ -63,22 +64,24 @@ class GaussianBlur(nn.Module):
         if self.same:
             self.padding = nn.ReplicationPad2d((kernel_size - 1)//2).cuda()
 
-        self.convolution = nn.Conv2d(n_channels,n_channels,kernel_size,stride=1,padding=0,groups=n_channels,bias=False)
-
         kernel = GaussianBlur.matlab_style_gauss2D(
             shape=(kernel_size, kernel_size),
             sigma=sigma
         )
+
         convolution_weight_numpy = np.stack([kernel[None, :, :] for _ in range(n_channels)])
-        self.convolution.weight = nn.Parameter(torch.FloatTensor(convolution_weight_numpy))
-        self.convolution.cuda()
+
+        self.trainable = trainable
+        if trainable:
+            self.weight = nn.Parameter(torch.FloatTensor(convolution_weight_numpy))
+        else:
+            self.register_buffer('weight', torch.FloatTensor(convolution_weight_numpy))
 
     def forward(self, x):
-        if self.same:
-            padded = self.padding(x)
-        else:
-            padded = x
-        blurred = self.convolution(padded)
+        blurred = F.conv2d(
+            self.padding(x) if self.same else x,
+            self.weight if self.trainable else torch.autograd.Variable(self.weight),
+            stride=1, padding=0, groups=3)
         return blurred
 
 

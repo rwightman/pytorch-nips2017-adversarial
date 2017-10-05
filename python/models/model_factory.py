@@ -10,6 +10,9 @@ from .dpn import dpn68, dpn68b, dpn92, dpn98, dpn131, dpn107
 from .transformed_model import TransformedModel
 from .load_checkpoint import load_checkpoint
 
+from .cifar.model_factory import create_model as create_cifar_model
+from .mnist.model_factory import create_model as create_mnist_model
+
 def create_model(
         model_name='resnet50',
         pretrained=False,
@@ -82,7 +85,7 @@ def create_model(
         model = torchvision.models.densenet201(num_classes=num_classes, pretrained=pretrained, **kwargs)
     elif model_name == 'inception_v3':
         model = torchvision.models.inception_v3(
-            num_classes=num_classes, pretrained=pretrained, transform_input=False, **kwargs)
+            num_classes=num_classes, pretrained=pretrained, transform_input=False, aux_logits=False)
     elif model_name == 'inception_resnet_v2':
         model = inception_resnet_v2(num_classes=num_classes, pretrained=pretrained, **kwargs)
     elif model_name == 'inception_v4':
@@ -115,4 +118,37 @@ def create_model(
         )
 
     return model
+
+
+def create_model_from_cfg(mc, checkpoint_path='', dataset='imagenet'):
+    if 'kwargs' not in mc:
+        mc['kwargs'] = {}
+
+    if dataset == 'imagenet':
+        model = create_model(
+            model_name=mc['model_name'],
+            num_classes=mc['num_classes'],
+            input_size=mc['input_size'],
+            normalizer=mc['normalizer'],
+            output_fn=mc['output_fn'],
+            drop_first_class=mc['drop_first_class'],
+            checkpoint_path=checkpoint_path if checkpoint_path else mc['checkpoint_file'],
+            **mc['kwargs']
+        )
+    elif dataset == 'cifar':
+        model = create_cifar_model(
+            model_name=mc['model_name'],
+            num_classes=mc['num_classes'],
+            checkpoint_path=checkpoint_path if checkpoint_path else mc['checkpoint_file'],
+            **mc['kwargs']
+        )
+    elif dataset == 'mnist':
+        model = create_mnist_model(
+            model_name=mc['model_name'],
+            checkpoint_path=checkpoint_path if checkpoint_path else mc['checkpoint_file'],
+            **mc['kwargs']
+        )
+
+    return model
+
 

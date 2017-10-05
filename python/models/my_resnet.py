@@ -110,6 +110,7 @@ class ResNet(nn.Module):
     def __init__(self, block, layers, num_classes=1000,
                  drop_rate=0.0, block_drop_rate=0.0,
                  global_pool='avg'):
+        self.num_classes = num_classes
         self.inplanes = 64
         self.drop_rate = drop_rate
         self.expansion = block.expansion
@@ -123,7 +124,8 @@ class ResNet(nn.Module):
         self.layer3 = self._make_layer(block, 256, layers[2], stride=2, drop_rate=block_drop_rate)
         self.layer4 = self._make_layer(block, 512, layers[3], stride=2, drop_rate=block_drop_rate)
         self.global_pool = AdaptiveAvgMaxPool2d(pool_type=global_pool)
-        self.fc = nn.Linear(512 * block.expansion * self.global_pool.factor(), num_classes)
+        self.num_features = 512 * block.expansion
+        self.fc = nn.Linear(self.num_features * self.global_pool.factor(), num_classes)
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
@@ -149,14 +151,18 @@ class ResNet(nn.Module):
 
         return nn.Sequential(*layers)
 
-    def get_fc(self):
+    def get_classifier(self):
         return self.fc
 
-    def reset_fc(self, num_classes, global_pool='avg'):
+    def reset_classifier(self, num_classes, global_pool='avg'):
         self.global_pool = AdaptiveAvgMaxPool2d(pool_type=global_pool)
-        self.fc = nn.Linear(512 * self.expansion * self.global_pool.factor(), num_classes)
+        self.num_classes = num_classes
+        if num_classes:
+            self.fc = nn.Linear(512 * self.expansion * self.global_pool.factor(), num_classes)
+        else:
+            self.fc = None
 
-    def forward(self, x):
+    def forward_features(self, x, pool=True):
         x = self.conv1(x)
         x = self.bn1(x)
         x = self.relu(x)
@@ -167,12 +173,15 @@ class ResNet(nn.Module):
         x = self.layer3(x)
         x = self.layer4(x)
 
-        x = self.global_pool(x)
-        x = x.view(x.size(0), -1)
+        if pool:
+            x = self.global_pool(x)
+            x = x.view(x.size(0), -1)
+        return x
 
+    def forward(self, x):
+        x = self.forward_features(x)
         if self.drop_rate > 0.:
             x = F.dropout(x, p=self.drop_rate, training=self.training)
-
         x = self.fc(x)
         return x
 

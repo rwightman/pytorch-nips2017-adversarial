@@ -15,8 +15,8 @@ from .attack import Attack
 
 class AttackCarliniWagnerL2(Attack):
 
-    def __init__(self, model, targeted=True, search_steps=None, max_steps=None, debug=False):
-        self.model = model
+    def __init__(self, target_model, targeted=True, search_steps=None, max_steps=None, debug=False):
+        self.target_model = target_model
         self.targeted = targeted
         self.num_classes = 1000
         self.confidence = 33  # FIXME need to find a good value for this, 0 value used in paper not doing much...
@@ -68,7 +68,7 @@ class AttackCarliniWagnerL2(Attack):
         else:
             input_adv = torch.clamp(modifier_var + input_var, self.clip_min, self.clip_max)
 
-        output = self.model(input_adv)
+        output = self.target_model(input_adv)
 
         # distance to the original input data
         if input_orig is None:
@@ -85,7 +85,7 @@ class AttackCarliniWagnerL2(Attack):
         loss_np = loss.data[0]
         dist_np = dist.data.cpu().numpy()
         output_np = output.data.cpu().numpy()
-        input_adv_np = input_adv.data.permute(0, 2, 3, 1).cpu().numpy()  # back to BHWC for numpy consumption
+        input_adv_np = input_adv.data.cpu().numpy()
         return loss_np, dist_np, output_np, input_adv_np
 
     def __call__(self, input, target, batch_idx=0, deadline_time=None):
@@ -99,7 +99,7 @@ class AttackCarliniWagnerL2(Attack):
         # python/numpy placeholders for the overall best l2, label score, and adversarial image
         o_best_l2 = [1e10] * batch_size
         o_best_score = [-1] * batch_size
-        o_best_attack = input.permute(0, 2, 3, 1).cpu().numpy()
+        o_best_attack = input.cpu().numpy()
 
         # setup input (image) variable, clamp/scale as necessary
         if self.clamp_fn == 'tanh':
