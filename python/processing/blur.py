@@ -40,10 +40,10 @@ class Blur(nn.Module):
 
 
 class RandomGaussianBlur(nn.Module):
-    def __init__(self, prob_blur, size, sigma):
+    def __init__(self, prob_blur, size, sigma, n_channels=None):
         super(RandomGaussianBlur, self).__init__()
         self.prob_blur = prob_blur
-        self.gaussian_blur = GaussianBlur(size, sigma)
+        self.gaussian_blur = GaussianBlur(size, sigma, n_channels = n_channels)
 
     def forward(self, x):
         do_blur = np.random.rand() < self.prob_blur
@@ -54,8 +54,10 @@ class RandomGaussianBlur(nn.Module):
 
 
 class GaussianBlur(nn.Module):
-    def __init__(self, kernel_size, sigma=None, same=True, trainable=False):
+    def __init__(self, kernel_size, sigma=None, same=True, n_channels=None, trainable=False):
         super(GaussianBlur, self).__init__()
+        self.n_channels = n_channels or 3
+
         kernel_size = kernel_size or 3
         sigma = sigma or 0.5
         self.same = same
@@ -66,7 +68,9 @@ class GaussianBlur(nn.Module):
             shape=(kernel_size, kernel_size),
             sigma=sigma
         )
-        convolution_weight_numpy = np.stack([kernel[None, :, :] for _ in range(3)])
+
+        convolution_weight_numpy = np.stack([kernel[None, :, :] for _ in range(n_channels)])
+
         self.trainable = trainable
         if trainable:
             self.weight = nn.Parameter(torch.FloatTensor(convolution_weight_numpy))

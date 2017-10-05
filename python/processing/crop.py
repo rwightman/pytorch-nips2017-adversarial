@@ -33,7 +33,8 @@ class CentreCrop(nn.Module):
 
     def forward(self, x):
         input_size = x.size(2)
-        crop_size = min(input_size, self.crop_size or round(input_size * self.crop_ratio))
+        if self.crop_size is None:
+            crop_size = min(input_size, self.crop_size or round(input_size * self.crop_ratio))
         crop_left = int(round((input_size - crop_size) / 2.))
         crop_right = crop_left + crop_size
         crop_top = int(round((input_size - crop_size) / 2.))
