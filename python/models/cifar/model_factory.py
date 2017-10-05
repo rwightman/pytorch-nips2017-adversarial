@@ -1,7 +1,7 @@
 from .torchvision import Resnet18
-from ..load_checkpoint import load_checkpoint
-from ..transformed_model import TransformedModel
-#from ...processing import Normalize
+from models.load_checkpoint import load_checkpoint
+from models.transformed_model import TransformedModel
+from processing import Normalize
 
 def create_model(
         model_name,
