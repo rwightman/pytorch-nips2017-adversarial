@@ -161,7 +161,7 @@ def validate(args, val_loader, model, criterion):
 
         # compute output
         output = model(input_var)
-        if isinstance(isinstance(output, tuple)):
+        if isinstance(output, tuple):
             output = output[0]
         loss = criterion(output, target_var)
 
