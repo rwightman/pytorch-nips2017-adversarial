@@ -20,7 +20,7 @@ class PytorchExampleNet(nn.Module):
         x = F.relu(self.fc1(x))
         x = F.dropout(x, training=self.training)
         x = self.fc2(x)
-        return F.log_softmax(x)
+        return x
 
 
 # https://github.com/tensorflow/cleverhans/blob/master/examples/madry_lab_challenges/madry_mnist_model.py
@@ -38,4 +38,4 @@ class MadryNet(nn.Module):
         x = x.view(-1, 7*7*64)
         x = F.relu(self.fc1(x))
         x = self.fc2(x)
-        return F.log_softmax(x)
+        return x

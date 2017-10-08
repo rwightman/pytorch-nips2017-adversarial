@@ -14,7 +14,7 @@ import processing
 def attack_factory(model, cfg):
     cfg = deepcopy(cfg)
     attack_name = cfg.pop('attack_name')
-    print('Creating attack (%s), with args: ' % attack_name, cfg)
+    #print('Creating attack (%s), with args: ' % attack_name, cfg)
     if attack_name == 'iterative':
         attack = AttackIterative(model, **cfg)
     elif attack_name == 'cw_inspired':

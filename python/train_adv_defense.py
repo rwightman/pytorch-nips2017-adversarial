@@ -1,3 +1,4 @@
+import sys
 import os
 import argparse
 import math
@@ -29,7 +30,7 @@ parser.add_argument('--decay-epochs', type=int, default=15, metavar='N',
                     help='epoch interval to decay LR')
 parser.add_argument('--start-epoch', default=0, type=int, metavar='N',
                     help='manual epoch number (useful on restarts)')
-parser.add_argument('-b', '--batch-size', default=16, type=int,
+parser.add_argument('-b', '--batch-size', default=128, type=int,
                     metavar='N', help='mini-batch size (default: 256)')
 parser.add_argument('--img-size', default=299, type=int,
                     metavar='N', help='Input image dimension')
@@ -51,7 +52,6 @@ parser.add_argument('--co', action='store_true', default=False,
                     help='optimize only defense classifier(s) parameters')
 parser.add_argument('--df', action='store_true', default=False,
                     help='dogfood attack with defense model')
-parser.add_argument('--batch_size', type=int, default=32)
 
 
 def train(args, train_loader, model, criterion, optimizer, epoch):
@@ -121,14 +121,17 @@ def train(args, train_loader, model, criterion, optimizer, epoch):
         end = time.time()
 
         if i % args.print_freq == 0:
-            print('Epoch: [{0}][{1}/{2}]\t'
-                  'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
-                  'Data {data_time.val:.3f} ({data_time.avg:.3f})\t'
-                  'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
-                  'Prec@1 {top1.val:.3f} ({top1.avg:.3f})\t'
-                  'Prec@5 {top5.val:.3f} ({top5.avg:.3f})'.format(
+            sys.stdout.write('\r')
+            sys.stdout.write('\x1b[1A')
+            sys.stdout.write('\r')
+            sys.stdout.write('Epoch: [{0}][{1}/{2}] '
+                  'Time {batch_time.val:.3f} ({batch_time.avg:.3f}) '
+                  'Data {data_time.val:.2f} ({data_time.avg:.2f}) '
+                  'Loss {loss.val:.4f} ({loss.avg:.4f}) '
+                  'Prec@1 {top1.val:.3f} ({top1.avg:.3f})'.format(
                 epoch, i, len(train_loader), batch_time=batch_time,
                 data_time=data_time, loss=losses, top1=top1, top5=top5))
+            sys.stdout.flush()
 
         if i % 1000 == 0:
             save_checkpoint({
@@ -175,13 +178,17 @@ def validate(args, val_loader, model, criterion):
         end = time.time()
 
         if i % args.print_freq == 0:
-            print('Test: [{0}/{1}]\t'
+            sys.stdout.write('\r')
+            sys.stdout.write('\x1b[1A')
+            sys.stdout.write('\r')
+            sys.stdout.write('Test: [{0}/{1}]\t'
                   'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
                   'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
                   'Prec@1 {top1.val:.3f} ({top1.avg:.3f})\t'
                   'Prec@5 {top5.val:.3f} ({top5.avg:.3f})'.format(
                 i, len(val_loader), batch_time=batch_time, loss=losses,
                 top1=top1, top5=top5))
+            sys.stdout.flush()
 
     print(' * Prec@1 {top1.avg:.3f} Prec@5 {top5.avg:.3f}'
           .format(top1=top1, top5=top5))
@@ -229,6 +236,7 @@ def main():
                            transforms.ToTensor(),
                        ])),
         batch_size=args.batch_size, shuffle=True, num_workers=1, pin_memory=True)
+
     val_loader = torch.utils.data.DataLoader(
         datasets.MNIST('../data', train=False, transform=transforms.Compose([
             transforms.ToTensor(),
@@ -236,25 +244,36 @@ def main():
         batch_size=args.batch_size, shuffle=False, num_workers=1, pin_memory=True)
 
     attack_cfgs = [
-        {'attack_name': 'iterative', 'targeted': True, 'num_steps': 10, 'target_rand': True},
-        {'attack_name': 'iterative', 'targeted': False, 'num_steps': 1, 'random_start': True},
-        {'attack_name': 'cw_inspired', 'targeted': True, 'n_iter': 10, 'lr': 0.5, 'n_channels': 1},
-        {'attack_name': 'cw_inspired', 'targeted': False, 'n_iter': 10, 'lr': 0.5, 'n_channels': 1},
+        {'attack_name': 'iterative', 'targeted': False, 'num_steps': 40, 'random_start': True, 'max_epsilon': 0.3*255.0, 'step_alpha':0.01*255.0},
+        {'attack_name': 'iterative', 'targeted': False, 'num_steps': 1, 'random_start': False, 'max_epsilon': 0.3*255.0},
     ]
 
-    mnist_madry_untrained = create_model_from_cfg(
-        {'model_name': 'madry', 'checkpoint_file': None}, dataset='mnist')
+    """
+    natural_models = [
+        create_model_from_cfg({'model_name': 'madry', 'checkpoint_file': 'madry.pth'}, dataset='mnist'),
+        create_model_from_cfg({'model_name': 'pytorch-example', 'checkpoint_file': 'pytex.pth'}, dataset='mnist'),
+        create_model_from_cfg({'model_name': 'modela', 'checkpoint_file': 'modela.pth'}, dataset='mnist'),
+        create_model_from_cfg({'model_name': 'modelb', 'checkpoint_file': 'modelb.pth'}, dataset='mnist'),
+        create_model_from_cfg({'model_name': 'modelc', 'checkpoint_file': 'modelc.pth'}, dataset='mnist'),
+        create_model_from_cfg({'model_name': 'modeld', 'checkpoint_file': 'modeld.pth'}, dataset='mnist'),
+    ]
+
+    ensemble = Ensemble(models=natural_models)
+
+    adversarial_model = create_model_from_cfg({'model_name': 'madry', 'checkpoint_file': 'madry_ens_adv.pth'}, dataset='mnist')
+    """
+
 
     adv_generator = AdversarialGenerator(
         train_loader,
         model_cfgs=[],
         attack_cfgs=attack_cfgs,
-        attack_probs=[0.4, 0.4, 0.1, 0.1],
+        attack_probs=[0.5, 0.5],
         output_batch_size=args.batch_size,
         input_devices=input_devices,
         master_output_device=master_output_device)
 
-    adv_generator.models = [mnist_madry_untrained]
+    adv_generator.models = []
 
     if args.mp:
         adv_generator = MpFeeder(adv_generator, maxsize=8)
@@ -262,7 +281,8 @@ def main():
     with torch.cuda.device(master_output_device):
         defense_ensemble = [True]
         defense_model = create_model_from_cfg(
-            {'model_name': 'madry', 'checkpoint_file': None}, dataset='mnist')
+            {'model_name': 'madry', 'checkpoint_file': None},
+            dataset='mnist')
 
         if args.mt:
             if len(defense_ensemble) > 1:
