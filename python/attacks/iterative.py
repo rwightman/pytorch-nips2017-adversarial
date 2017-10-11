@@ -105,8 +105,6 @@ class AttackIterative(Attack):
             loss = self.loss_fn(output, target_var)
             loss.backward()
 
-            print(total_adv.grad.data)
-
             # normalize and scale gradient
             if self.norm == float('inf'):
                 # infinity-norm
