@@ -5,30 +5,7 @@ from copy import deepcopy
 
 from models import create_ensemble, create_model
 from models.model_configs import config_from_string
-from attacks.iterative import AttackIterative
-from attacks.cw_inspired import CWInspired
-from attacks.selective_universal import SelectiveUniversal
-import processing
-
-
-def attack_factory(model, cfg):
-    cfg = deepcopy(cfg)
-    attack_name = cfg.pop('attack_name')
-    #print('Creating attack (%s), with args: ' % attack_name, cfg)
-    if attack_name == 'iterative':
-        attack = AttackIterative(model, **cfg)
-    elif attack_name == 'cw_inspired':
-        n_channels = None
-        if 'n_channels' in cfg:
-            n_channels = cfg.pop('n_channels')
-        augmentation = processing.build_anp_augmentation_module(n_channels=n_channels)
-        augmentation = augmentation.cuda()
-        attack = CWInspired(model, augmentation, **cfg)
-    elif attack_name == 'selective_universal':
-        attack = SelectiveUniversal(model, **cfg)
-    else:
-        assert False, 'Unknown attack'
-    return attack
+from attacks.attack_factory import attack_factory
 
 
 class AdversarialGenerator:
@@ -78,6 +55,7 @@ class AdversarialGenerator:
 
     def _next_model(self):
         next_idx = inc_roll(self.model_idx, len(self.models))
+        #next_idx = np.random.randint(0, len(self.models))
         dogfood = False
         if self.dogfood_model_idx is not None:
             c = self.model_count // len(self.models) + 1
