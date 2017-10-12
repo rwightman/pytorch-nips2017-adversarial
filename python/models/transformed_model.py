@@ -13,8 +13,10 @@ def get_output_fn(output_fn='softmax'):
         return nn.Sigmoid()
     elif output_fn == 'log_sigmoid' or output_fn == 'logsigmoid':
         return nn.LogSigmoid()
+    elif output_fn == 'none':
+        return lambda x: x
     else:
-        assert False, 'Error: unknown output_fn specified'
+        assert False, 'Error: unknown output_fn: {} specified'.format(output_fn)
 
 
 class TransformedModel(nn.Module):
