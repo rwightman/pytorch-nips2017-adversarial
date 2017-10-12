@@ -14,7 +14,7 @@ class UniversalPerturbation(object):
         self.universal_perturbation = torch.tanh(
             torch.FloatTensor((np.load(self.universal_perturbation_npy_file)))).cuda()
 
-    def __call__(self, input, target, batch_idx, deadline_time):
+    def __call__(self, input, target, batch_idx=None):
         eps = self.max_epsilon / 255.0
 
         perturbed = input + eps * self.universal_perturbation

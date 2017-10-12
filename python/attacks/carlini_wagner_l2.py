@@ -88,7 +88,7 @@ class AttackCarliniWagnerL2(Attack):
         input_adv_np = input_adv.data.cpu().numpy()
         return loss_np, dist_np, output_np, input_adv_np
 
-    def __call__(self, input, target, batch_idx=0, deadline_time=None):
+    def __call__(self, input, target, batch_idx=0):
         batch_size = input.size(0)
 
         # set the lower and upper bounds accordingly

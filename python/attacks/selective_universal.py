@@ -29,7 +29,7 @@ class SelectiveUniversal(object):
             self.mirrors = [lambda x: x]
             self.is_mirror = [False]
 
-    def __call__(self, input, target, batch_idx, deadline_time):
+    def __call__(self, input, target, batch_idx=None):
         eps = self.max_epsilon / 255.0
 
         input = input.cuda()
