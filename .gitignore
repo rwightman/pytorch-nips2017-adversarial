@@ -3,4 +3,6 @@ python/runs/
 *.csv
 __pycache__
 .idea
+*.pth
+*.tar
 local_config.yaml
