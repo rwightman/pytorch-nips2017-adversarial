@@ -1,9 +1,6 @@
-from .blur import Blur, RandomBlur, GaussianBlur, RandomGaussianBlur
-from .colour import RandomBrightnessContrast, RandomSaturation
-from .crop import CentreCrop, RandomCrop
-from .mirror import Mirror, RandomMirror
-from .resize import Resize
-from .normalize import get_normalizer
+from processing import Blur, RandomBlur, GaussianBlur, RandomGaussianBlur,\
+    RandomBrightnessContrast, RandomSaturation, CentreCrop, RandomCrop,\
+    Mirror, RandomMirror, Resize, get_normalizer
 from collections import OrderedDict
 import torch.nn as nn
 

@@ -124,6 +124,9 @@ def create_model_from_cfg(mc, checkpoint_path='', dataset='imagenet'):
     if 'kwargs' not in mc:
         mc['kwargs'] = {}
 
+    if 'dataset' in mc:
+        dataset = mc.pop('dataset')
+
     if dataset == 'imagenet':
         model = create_model(
             model_name=mc['model_name'],

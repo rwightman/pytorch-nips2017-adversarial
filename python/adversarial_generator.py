@@ -18,7 +18,8 @@ class AdversarialGenerator:
             attack_probs=None,
             output_batch_size=8,
             input_devices=[0],
-            master_output_device=None):
+            master_output_device=None,
+            augmentation=lambda x: x):
 
         self.loader = loader
         self.model_cfgs = model_cfgs
@@ -43,12 +44,14 @@ class AdversarialGenerator:
         self.model_change_cycle = 5
         self.dogfood_cycle = 2
 
+        self.augmentation = augmentation
+
         self._load_models()
 
     def _load_models(self):
         # pre-load all model params into system (CPU) memory
         for mc in self.model_cfgs:
-            cfgs = [config_from_string(x) for x in mc['models']]
+            cfgs = mc['models']
             weights = mc['weights'] if 'weights' in mc and len(mc['weights']) else None
             ensemble = create_ensemble(cfgs, weights)
             self.models.append(ensemble)
@@ -143,10 +146,9 @@ class AdversarialGenerator:
                 num_p = curr_input_batch_size - num_u
                 with torch.cuda.device(self.master_input_device):
                     perturbed, adv_targets, _ = attack(
-                        input[in_idx:in_idx + num_p, :, :, :].cuda(),
+                        self.augmentation(input[in_idx:in_idx + num_p, :, :, :].cuda()),
                         target[in_idx:in_idx + num_p].cuda(),
-                        batch_idx=i,
-                        deadline_time=None)
+                        batch_idx=i)
                 if adv_targets is None:
                     adv_targets = target[in_idx:in_idx + num_p]
 

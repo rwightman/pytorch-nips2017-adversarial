@@ -6,18 +6,24 @@ from dataset import Dataset
 from models import create_ensemble
 from models.model_configs import config_from_string
 
-parser = argparse.ArgumentParser(description='Defence')
+parser = argparse.ArgumentParser(description='Attack')
+
+# NIPS 2017 Adversarial Interface
 parser.add_argument('--input_dir', metavar='DIR',
                     help='Input directory with images.')
 parser.add_argument('--output_dir', metavar='FILE',
                     help='Output directory to save images.')
 parser.add_argument('--max_epsilon', type=int, default=16, metavar='N',
                     help='Maximum size of adversarial perturbation. (default: 16.0)')
-parser.add_argument('--npy_files', nargs='+', type=str)
+
+# Target Model
 parser.add_argument('--ensemble', nargs='+', help='Class names for the defensive ensemble.')
 parser.add_argument('--ensemble_weights', nargs='+', type=float,
-                    help='Weights for weighted geometric mean of output probs')
-parser.add_argument('--checkpoint_paths', nargs='+', help='Paths to checkpoint files for each model.')
+                    help='Weights for ensembling model outputs.')
+parser.add_argument('--checkpoint_paths', nargs='+', help='Paths to checkpoint files for each target_model.')
+
+# Args
+parser.add_argument('--npy_files', nargs='+', type=str)
 parser.add_argument('--try_mirrors', action='store_true', default=False)
 
 def main():

@@ -7,14 +7,19 @@ import torch
 import torchvision.transforms as transforms
 
 parser = argparse.ArgumentParser(description='Defence')
-parser.add_argument('--input_dir', metavar='DIR', default='',
+
+# NIPS 2017 Adversarial Interface
+parser.add_argument('--input_dir', metavar='DIR',
                     help='Input directory with images.')
-parser.add_argument('--output_file', metavar='FILE', default='',
-                    help='Output file to save labels.')
+parser.add_argument('--output_dir', metavar='FILE',
+                    help='Output directory to save images.')
+
+# Defense Ensemble
 parser.add_argument('--ensemble', nargs='+', help='Class names for the defensive ensemble.')
 parser.add_argument('--ensemble_weights', nargs='+', type=float,
-                    help='Weights for weighted geometric mean of output probs')
-parser.add_argument('--checkpoint_paths', nargs='+', help='Paths to checkpoint files for each model.')
+                    help='Weights for ensembling model outputs.')
+parser.add_argument('--checkpoint_paths', nargs='+', help='Paths to checkpoint files for each target_model.')
+
 parser.add_argument('--img-size', type=int, default=299, metavar='N',
                     help='Image patch size (default: 299)')
 parser.add_argument('--batch-size', type=int, default=32, metavar='N',

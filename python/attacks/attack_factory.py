@@ -24,6 +24,8 @@ def attack_factory(model, cfg):
         attack = CWInspired(model, augmentation, **cfg)
     elif attack_name == 'selective_universal':
         attack = SelectiveUniversal(model, **cfg)
+    elif attack_name == 'noop':
+        attack = lambda batch, target, batch_idx=0: (batch, None, None)
     else:
         assert False, 'Unknown attack'
 

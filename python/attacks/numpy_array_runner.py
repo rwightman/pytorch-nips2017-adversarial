@@ -13,7 +13,7 @@ class NumpyArrayAttackRunner:
 
         output = []
         for input, target in loader:
-            input, target = data.cuda(), target.cuda()
+            input, target = input.cuda(), target.cuda()
             input, _, _ = attack(input, target, None)
             output.append(input.cpu().numpy().squeeze())
             print('Completed so far: {}'.format(sum([len(x) for x in output])))

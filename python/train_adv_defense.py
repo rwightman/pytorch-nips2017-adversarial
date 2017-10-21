@@ -4,6 +4,7 @@ import math
 import time
 import torch
 import torch.utils.data
+from torch.optim import lr_scheduler
 import numpy as np
 from copy import deepcopy
 from torchvision import transforms
@@ -213,10 +214,15 @@ def main():
         else:
             defense_model = multi_task.MultiTask(defense_model)
 
-    train_adv_defense(args, defense_model, train_dataset, val_dataset, attack_model_cfgs, attack_cfgs)
+    def get_schedule_function(decay_epochs):
+        return lambda epoch: 0.1 ** (epoch // decay_epochs)
+
+    schedule_function = get_schedule_function(args.decay_epochs)
+
+    train_adv_defense(args, defense_model, train_dataset, val_dataset, lambda x: x, None, attack_model_cfgs, attack_cfgs, schedule_function=schedule_function)
 
 
-def train_adv_defense(args, defense_model, train_dataset, val_dataset, attack_model_cfgs, attack_cfgs):
+def train_adv_defense(args, defense_model, train_dataset, val_dataset, augmentation, attack_model_cfgs, attack_cfgs, schedule_function=lambda epoch: 1):
     train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True,
         num_workers=args.workers, pin_memory=True)
 
@@ -242,7 +248,7 @@ def train_adv_defense(args, defense_model, train_dataset, val_dataset, attack_mo
     master_output_device = output_devices[0]
 
     adv_generator = AdversarialGenerator(train_loader, model_cfgs=attack_model_cfgs, attack_cfgs=attack_cfgs,
-        attack_probs=[0.4, 0.4, 0.1, 0.1], output_batch_size=args.batch_size, input_devices=input_devices,
+        output_batch_size=args.batch_size, input_devices=input_devices,
         master_output_device=master_output_device)
 
     if args.mp:
@@ -266,12 +272,15 @@ def train_adv_defense(args, defense_model, train_dataset, val_dataset, attack_mo
         else:
             assert False, "Invalid optimizer specified"
 
+        scheduler = lr_scheduler.LambdaLR(optimizer, [schedule_function])
+
         if args.resume:
             if os.path.isfile(args.resume):
                 print("=> loading checkpoint '{}'".format(args.resume))
                 checkpoint = torch.load(args.resume)
                 if isinstance(checkpoint, dict) and 'state_dict' in checkpoint:
-                    args.start_epoch = checkpoint['epoch']
+                    if args.start_epoch is None:
+                        args.start_epoch = checkpoint['epoch']
                     # best_prec1 = checkpoint['best_prec1']
                     defense_model.load_state_dict(checkpoint['state_dict'])
                     optimizer.load_state_dict(checkpoint['optimizer'])
@@ -287,8 +296,8 @@ def train_adv_defense(args, defense_model, train_dataset, val_dataset, attack_mo
         criterion = torch.nn.CrossEntropyLoss().cuda()
 
         best_prec1 = 0
-        for epoch in range(args.start_epoch, args.epochs):
-            adjust_learning_rate(args.lr, optimizer, epoch, decay_epochs=args.decay_epochs)
+        for epoch in range(args.start_epoch or 0, args.epochs):
+            scheduler.step()
 
             # train for one epoch
             train(args, adv_generator, defense_model, criterion, optimizer, epoch)
@@ -331,14 +340,6 @@ class AverageMeter(object):
         self.sum += val * n
         self.count += n
         self.avg = self.sum / self.count
-
-
-def adjust_learning_rate(initial_lr, optimizer, epoch, decay_epochs=30):
-    """Sets the learning rate to the initial LR decayed by 10 every 30 epochs"""
-    lr = initial_lr * (0.1 ** (epoch // decay_epochs))
-    for param_group in optimizer.param_groups:
-        param_group['lr'] = lr
-
 
 def accuracy(output, target, topk=(1,)):
     """Computes the precision@k for the specified values of k"""

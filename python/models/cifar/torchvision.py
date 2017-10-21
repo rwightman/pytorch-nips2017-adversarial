@@ -30,4 +30,25 @@ class Resnet34(Resnet):
     def __init__(self, num_classes):
         super(Resnet34, self).__init__(torchvision.models.resnet18(pretrained=False, num_classes=num_classes))
 
+class Squeezenet(nn.Module):
+    def __init__(self, squeezenet, num_classes):
+        super(Squeezenet, self).__init__()
+        self.squeezenet = squeezenet
 
+        # Patch over the imagenet model to make sense for CIFAR
+        self.squeezenet.classifier = nn.Sequential(
+            nn.Dropout(p=0.5),
+            nn.Conv2d(512, num_classes, kernel_size=1),
+            nn.ReLU(inplace=True),
+            nn.AdaptiveAvgPool2d((1,1))
+        )
+    def forward(self, x):
+        return self.squeezenet(x)
+
+class Squeezenet1_0(Squeezenet):
+    def __init__(self, num_classes):
+        super(Squeezenet1_0, self).__init__(torchvision.models.squeezenet1_0(pretrained=False, num_classes=num_classes), num_classes)
+
+class Squeezenet1_1(Squeezenet):
+    def __init__(self, num_classes):
+        super(Squeezenet1_1, self).__init__(torchvision.models.squeezenet1_1(pretrained=False, num_classes=num_classes), num_classes)

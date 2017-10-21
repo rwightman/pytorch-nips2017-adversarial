@@ -70,7 +70,8 @@ class AttackIterative(DirectedAttack):
 
         # Targeting
         if self.targeting_required:
-            target_var.data = self.get_target(input_var)
+            target_data, output = self.get_target(input_var)
+            target_var.data = target_data.cuda()
             done_fwd = True
 
         # Initialization
@@ -86,7 +87,6 @@ class AttackIterative(DirectedAttack):
             else:
                 raise ValueError('Random start method {} not recognized.'.format(self.random_start_method))
 
-        ###########
         # Main gradient descent loop
 
         step = 0

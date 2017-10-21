@@ -13,7 +13,9 @@ class Attack:
 
 
 class DirectedAttack(Attack):
-    def __init__(self, target_model,
+    def __init__(self,
+                 target_model,
+
                  # Targeting Args
                  targeted=True,  # target will be passed in
                  target_min=False,  # target least likely
@@ -25,7 +27,7 @@ class DirectedAttack(Attack):
         self.target_model = target_model
 
         # Options are all mutually exclusive
-        assert target_min + target_rand + target_nth_highest + (always_target is not None) + targeted <= 1
+        assert target_min + target_rand + (target_nth_highest is not None) + (always_target is not None) + targeted <= 1
 
         self.targeted = targeted
         self.target_min = target_min
@@ -33,6 +35,8 @@ class DirectedAttack(Attack):
         self.target_nth_highest = target_nth_highest
         self.always_target = always_target
 
+        self.towards = targeted or target_min or target_rand or target_nth_highest or always_target
+        self.away = not self.towards
         self.targeting_required = target_min or target_rand or target_nth_highest or always_target or (not targeted)
 
     def __call__(self, inputs, targets, batch_idx=0):
@@ -42,14 +46,14 @@ class DirectedAttack(Attack):
         output = self.target_model(input_var)
 
         if self.target_min:
-            return output.data.min(1)[1]
+            return output.data.min(1)[1], output
         elif self.target_rand:
             output_exp = 1. - torch.exp(output.data)
-            return torch.multinomial(output_exp, 1).squeeze()
-        elif self.target_nth_highest:
-            return torch.LongTensor(np.argsort(output.data.cpu().numpy(), axis=1)[:, -self.target_nth_highest])
+            return torch.multinomial(output_exp, 1).squeeze(), output
+        elif self.target_nth_highest is not None:
+            return torch.LongTensor(np.argsort(output.data.cpu().numpy(), axis=1)[:, -self.target_nth_highest]), output
         elif self.always_target is not None:
-            return torch.LongTensor(np.repeat(self.always_target, input_var.size(0)))
+            return torch.LongTensor(np.repeat(self.always_target, input_var.size(0))), output
         else:
             # We'll move away from the predicted class
-            return output.data.max(1)[1]
+            return output.data.max(1)[1], output

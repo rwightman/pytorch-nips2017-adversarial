@@ -2,9 +2,9 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from models.median_pool import MedianPool2d
+#from models.median_pool import MedianPool2d
 
-
+"""
 class RandomBlur(nn.Module):
     def __init__(self, blur_prob, blur2x2_prob):
         super(RandomBlur, self).__init__()
@@ -37,7 +37,7 @@ class Blur(nn.Module):
     def forward(self, x):
         blurred = self.median_pool(x)
         return blurred
-
+"""
 
 class RandomGaussianBlur(nn.Module):
     def __init__(self, prob_blur, size, sigma, n_channels=None):

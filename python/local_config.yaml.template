@@ -1,4 +1,0 @@
-results_dir: '/tmp/nips/'
-checkpoints_dir: '/home/aleksey/code/nips2017-nw/shared/checkpoints/'
-images_dir: '/home/aleksey/code/nips2017-nw/dataset/images/'
-deployment_dir: '/home/aleksey/code/nips2017-adversarial/cleverhans'

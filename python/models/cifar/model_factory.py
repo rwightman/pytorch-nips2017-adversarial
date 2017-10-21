@@ -1,4 +1,4 @@
-from .torchvision import Resnet18, Resnet34
+from .torchvision import Resnet18, Resnet34, Squeezenet1_0, Squeezenet1_1
 from .wide_resnet import Wide_ResNet
 
 from models.load_checkpoint import load_checkpoint
@@ -20,6 +20,12 @@ def create_model(
         model = Wide_ResNet(16, 4, 0.3, num_classes)
     elif model_name == 'wr40x4':
         model = Wide_ResNet(40, 4, 0.3, num_classes)
+    elif model_name == 'wr28x10':
+        model = Wide_ResNet(28, 10, 0.3, num_classes)
+    elif model_name == 'squeezenet1_0':
+        model = Squeezenet1_0(num_classes)
+    elif model_name == 'squeezenet1_1':
+        model = Squeezenet1_1(num_classes)
     else:
         raise ValueError('Invalid model_name: {}'.format(model_name))
 
@@ -32,7 +38,7 @@ def create_model(
 
     model = TransformedModel(
         model=model,
-        input_size=None,
+        input_size=32,
         normalizer=normalizer,
         output_fn=output_fn
     )
