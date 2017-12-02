@@ -85,7 +85,7 @@ def create_model(
         model = torchvision.models.densenet201(num_classes=num_classes, pretrained=pretrained, **kwargs)
     elif model_name == 'inception_v3':
         model = torchvision.models.inception_v3(
-            num_classes=num_classes, pretrained=pretrained, transform_input=False, aux_logits=False)
+            num_classes=num_classes, pretrained=pretrained, transform_input=False, **kwargs)
     elif model_name == 'inception_resnet_v2':
         model = inception_resnet_v2(num_classes=num_classes, pretrained=pretrained, **kwargs)
     elif model_name == 'inception_v4':

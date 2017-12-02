@@ -19,7 +19,7 @@ def config_from_string(string, output_fn='log_softmax'):
             'checkpoint_file': 'adv_inception_v3_rw.pth', 'drop_first_class': True, 'kwargs': {'aux_logits': False}},
         'inception_v3': {
             'model_name': 'inception_v3', 'num_classes': 1000, 'input_size': 299,
-            'checkpoint_file': 'inception_v3_google-1a9a5a14.pth', 'drop_first_class': False},
+            'checkpoint_file': 'inception_v3_google-1a9a5a14.pth', 'drop_first_class': False, 'kwargs': {'aux_logits': True}},
         'resnet18': {
             'model_name': 'resnet18', 'num_classes': 1000, 'input_size': 224,
             'checkpoint_file': 'resnet18-5c106cde.pth', 'drop_first_class': False},
