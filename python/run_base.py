@@ -11,7 +11,7 @@ parser = argparse.ArgumentParser(description='Defence')
 # NIPS 2017 Adversarial Interface
 parser.add_argument('--input_dir', metavar='DIR',
                     help='Input directory with images.')
-parser.add_argument('--output_dir', metavar='FILE',
+parser.add_argument('--output_file', metavar='FILE',
                     help='Output directory to save images.')
 
 # Defense Ensemble
