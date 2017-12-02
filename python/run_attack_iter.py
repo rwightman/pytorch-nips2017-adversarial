@@ -42,7 +42,7 @@ parser.add_argument('--norm', default='inf', type=float,
 # Initialization
 parser.add_argument('--random-start', action='store_true', default=False,
                     help='Randomize a starting point from the input image.')
-parser.add_argument('--random-start-method', type=str, default='sign',
+parser.add_argument('--random-start-method', type=str, default='signed',
                     help='Method of selecting random values.')
 parser.add_argument('--random-start-factor', type=float, default=0.5,
                     help='Proportion of max_epsilon to scale the random start.')
@@ -54,7 +54,7 @@ parser.add_argument('--target-min', action='store_true', default=False,
                     help='Least likely class will be the target after an intial forward pass.')
 parser.add_argument('--target-rand', action='store_true', default=False,
                     help='Random class will be selected after an initial forward pass.')
-parser.add_argument('--target-nth-highest', type=int, default=6,
+parser.add_argument('--target-nth-highest', type=int, default=None,
                     help='The nth most likely class will be selected as a target after an initial forward pass.')
 parser.add_argument('--always-target', type=int, default=None,
                     help='Alawys target this same class.')
@@ -80,7 +80,7 @@ def main():
         max_epsilon=args.max_epsilon,
         norm=args.norm,
         step_alpha=args.step_alpha,
-        num_steps=args.num_steps,
+        num_steps=args.steps,
         targeted=args.targeted,
         target_min=args.target_min,
         target_rand=args.target_rand,
