@@ -21,14 +21,11 @@ CHECKPOINT_DIR = local_config['checkpoints_dir']
 
 input_dir = '/media/stuff/ImageNet/test'
 
-TARGET_CLASS = 664
-
 max_epsilon = 16.0
 batch_size = 16
 
-ensemble = ['dpn92',]
-ensemble_weights = [1.0]
-
+ensemble = ['dpn68b_extra', 'squeezenet1_1', 'resnet18', 'adv_inception_v3', 'adv_inception_resnet_v2']
+ensemble_weights = [1.0, 1.0, 1.0, 1.0, 1.0]
 
 checkpoint_paths = [os.path.join(CHECKPOINT_DIR, config_from_string(m)['checkpoint_file']) for m in ensemble]
 
@@ -94,57 +91,62 @@ perturbation_model = PerturbationNet(
 
 nllloss = torch.nn.NLLLoss().cuda()
 
-w_matrix = autograd.Variable(
-    torch.zeros(1, 3, img_size, img_size).cuda(),
-    requires_grad=True)
-perturbation_model.set_w_matrix(w_matrix)
-optimizer = optim.Adam([w_matrix], lr=0.08)
+for TARGET_CLASS in range(1000):
 
-from datetime import datetime
-writer = SummaryWriter(log_dir=os.path.join('../runs/', datetime.now().strftime('%b%d_%H-%M-%S') + '_'))
+    w_matrix = autograd.Variable(
+        torch.zeros(1, 3, img_size, img_size).cuda(),
+        requires_grad=True)
+    perturbation_model.set_w_matrix(w_matrix)
+    optimizer = optim.Adam([w_matrix], lr=0.08)
 
-n_batches_per_epoch = 100
-epoch_batch_idx = 0
-losses = []
-while True:
-    for batch_idx, (input, class_id) in enumerate(loader):
-        if input.size(0) < batch_size:
-            break
-        if epoch_batch_idx == n_batches_per_epoch:
-            mean_loss = np.mean(losses)
-            epoch_batch_idx = 0
-            losses = []
+    from datetime import datetime
+    writer = SummaryWriter(log_dir=os.path.join('../runs/', datetime.now().strftime('%b%d_%H-%M-%S') + '_'))
 
-            w_matrix_to_save = perturbation_model.w_matrix.data.cpu()
-            delta = torch.tanh(w_matrix_to_save)
-            writer.add_image('Image', torchvision.utils.make_grid(delta, normalize=True), batch_idx)
+    n_epochs_complete = 0
+    n_batches_per_epoch = 100
+    epoch_batch_idx = 0
+    losses = []
+    while True:
+        for batch_idx, (input, class_id) in enumerate(loader):
+            if input.size(0) < batch_size:
+                break
+            if epoch_batch_idx == n_batches_per_epoch:
+                mean_loss = np.mean(losses)
+                epoch_batch_idx = 0
+                losses = []
 
-            np.save('../univs/{}_iter{}'.format(out_filename,batch_idx), w_matrix_to_save.numpy())
+                w_matrix_to_save = perturbation_model.w_matrix.data.cpu()
+                delta = torch.tanh(w_matrix_to_save)
+                writer.add_image('Image', torchvision.utils.make_grid(delta, normalize=True), batch_idx)
 
-            imsave('../univs/{}_iter{}.png'.format(out_filename,batch_idx),
-                   np.round(255.0 * np.transpose(delta[0].numpy()*0.5+0.5, axes=(1, 2, 0))).astype(np.uint8),
-                   format='png')
+                np.save('../univs/{}_iter{}'.format(out_filename,batch_idx), w_matrix_to_save.numpy())
 
-            writer.add_scalar('grad/magnitude', float(np.linalg.norm(perturbation_model.w_matrix.grad.data.cpu().numpy())), batch_idx)
-            writer.add_histogram('image/hist', w_matrix_to_save.numpy(), batch_idx)
+                imsave('../univs/{}_iter{}.png'.format(out_filename,batch_idx),
+                       np.round(255.0 * np.transpose(delta[0].numpy()*0.5+0.5, axes=(1, 2, 0))).astype(np.uint8),
+                       format='png')
 
-        epoch_batch_idx = epoch_batch_idx + 1
-        input = input.cuda()
-        input_var = autograd.Variable(input, volatile=False, requires_grad=True)
-        class_var = autograd.Variable(torch.LongTensor(np.repeat(TARGET_CLASS,batch_size))).cuda()
+                writer.add_scalar('grad/magnitude', float(np.linalg.norm(perturbation_model.w_matrix.grad.data.cpu().numpy())), batch_idx)
+                writer.add_histogram('image/hist', w_matrix_to_save.numpy(), batch_idx)
 
-        log_probs_perturbed_var = perturbation_model(input_var)
-        optimizer.zero_grad()
-        loss = nllloss(log_probs_perturbed_var, target=class_var)
-        losses.append(loss.data.cpu().numpy())
-        loss.backward()
+                n_epochs_complete += 1
 
-        writer.add_scalar('data/loss', float(loss.data.cpu().numpy()), batch_idx)
+            epoch_batch_idx = epoch_batch_idx + 1
+            input = input.cuda()
+            input_var = autograd.Variable(input, volatile=False, requires_grad=True)
+            class_var = autograd.Variable(torch.LongTensor(np.repeat(TARGET_CLASS,batch_size))).cuda()
 
-        optimizer.step()
+            log_probs_perturbed_var = perturbation_model(input_var)
+            optimizer.zero_grad()
+            loss = nllloss(log_probs_perturbed_var, target=class_var)
+            losses.append(loss.data.cpu().numpy())
+            loss.backward()
+
+            writer.add_scalar('data/loss', float(loss.data.cpu().numpy()), batch_idx)
+
+            optimizer.step()
 
 
-np.save(out_filename, perturbation_model.w_matrix.data.cpu().numpy())
+    np.save(out_filename, perturbation_model.w_matrix.data.cpu().numpy())
 
 
 #from PIL import Image
