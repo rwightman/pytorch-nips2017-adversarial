@@ -6,7 +6,7 @@ This repository contains the code that Aleksey (https://github.com/alekseynp) an
 * Targeted Attack: https://www.kaggle.com/c/nips-2017-targeted-adversarial-attack
 * Defense: https://www.kaggle.com/c/nips-2017-defense-against-adversarial-attack
 
-The code in this repository includes the competition runtime scripts, along with support code for experiments, training, and other ideas at various stages of completion. The code here is far from production quality, and many pieces were abandoned moving from one idea to the next. The attacks and defenses were build to run within the Development Toolkit provided in Google's Cleverhans repsitory (https://github.com/tensorflow/cleverhans/tree/master/examples/nips17_adversarial_competition). 
+The code in this repository includes the competition runtime scripts, along with support code for experiments, training, and other ideas at various stages of completion. The code here is far from production quality, and many pieces were abandoned moving from one idea to the next. The attacks and defenses were build to run within the Development Toolkit provided in Google's Cleverhans repository: https://github.com/tensorflow/cleverhans/tree/master/examples/nips17_adversarial_competition. 
 
 The competition runtime code submitted for the final round can be found at: https://bitbucket.org/alekseynp/nips-submissions/src 
 
