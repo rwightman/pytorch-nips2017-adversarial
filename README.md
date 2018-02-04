@@ -18,4 +18,4 @@ Of potential interest to anyone rooting through this code:
 
 1. The `train_adversarial_defense.py` script contains a PyTorch implementation of what I call 'Ensemble-Ensemble Adversarial Training'. Inspired by the ideas in https://arxiv.org/abs/1705.07204, it trains a weighted ensemble of base defense networks against an ensemble of different attacks (themselves optimizing perturbations against ensembles of base networks). It is resource heavy and was tested on a 4 x P100 GCP instance. It truly reflects the flexibility of PyTorch as an experimentation platform. 
 
-1. I ported weights of the Google provided adversarially trained Inception-V3 and ensemble adversarially trained Inception-Resnet-V2 to PyTorch models. Anyone interested in those weights or the porting code can contact us as we don't have suitable hosting.
+1. I ported weights of the Google provided adversarially trained Inception-V3 and ensemble adversarially trained Inception-Resnet-V2 (https://github.com/tensorflow/models/tree/master/research/adv_imagenet_models) to PyTorch models. Anyone interested in those weights or the porting code can contact us as we don't have suitable hosting.
